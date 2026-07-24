@@ -11,6 +11,9 @@ interface Product {
   image_url: string | null;
   creator_name: string | null;
   theme_color: string | null;
+  gallery_images?: string[];
+  preview_size?: string;
+  carousel_position?: string;
   type: string;
   syncpay_plan_id: string;
   show_price: boolean;

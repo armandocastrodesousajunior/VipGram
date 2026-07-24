@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 
 interface Product {
@@ -11,6 +12,9 @@ interface Product {
   image_url: string | null;
   creator_name: string | null;
   theme_color: string | null;
+  gallery_images?: string[];
+  preview_size?: string;
+  carousel_position?: string;
   type: string;
   syncpay_plan_id: string;
   show_price: boolean;
@@ -63,6 +67,9 @@ export default function LandingClient({
   product: Product;
   plan: Plan | null;
 }) {
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
   const theme = product.theme_color ?? 'clean_light';
   const creatorHandle = product.creator_name ? product.creator_name : `@${product.slug}`;
   const initials = getInitials(creatorHandle);
@@ -73,127 +80,204 @@ export default function LandingClient({
 
   return (
     <div className={`checkout-view theme-${theme}`}>
-      {/* Top bar */}
-      <div className="top-bar">
-        <span>Já é inscrito? <a href={`/checkout/${product.slug}`}>Acesse a <strong>Área de membros</strong>.</a></span>
-      </div>
-
       {/* Main Container */}
       <div className="view-container">
-        <div className="view-grid">
+        
+        {/* Banner Horizontal do Produto no Topo da Tela */}
+        {product.show_banner !== false && product.banner_url && (
+          <div className="top-banner-wrapper">
+            <img src={product.banner_url} alt={product.name} className="top-banner-img" />
+          </div>
+        )}
+
+        {/* Card Principal do Checkout */}
+        <div className="left-card">
           
-          {/* COLUNA DA ESQUERDA: Seleção e Ação */}
-          <div className="left-card">
-            
-            {/* Header do Criador */}
-            {product.show_creator !== false && (
-              <div className="creator-header">
-                <div className="creator-avatar">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={creatorHandle} />
-                  ) : (
-                    <span>{initials}</span>
-                  )}
-                </div>
-                <div className="creator-info">
-                  <h2>{product.name}</h2>
-                  {product.creator_name && <p>Criado por {product.creator_name}</p>}
-                </div>
+          {/* Header do Criador */}
+          {product.show_creator !== false && (
+            <div className="creator-header">
+              <div className="creator-avatar">
+                {product.image_url ? (
+                  <img src={product.image_url} alt={creatorHandle} />
+                ) : (
+                  <span>{initials}</span>
+                )}
               </div>
-            )}
+              <div className="creator-info">
+                <h2>{product.name}</h2>
+                {product.creator_name && <p>Criado por {product.creator_name}</p>}
+              </div>
+            </div>
+          )}
 
-
-            {/* Card do Plano Único */}
-            {(() => {
-              const activePlan = plan ?? { name: 'Plano VIP', amount: 0, periodicity_days: 7 };
+          {/* Helper de Renderização do Carrossel */}
+          {(() => {
+            const showBefore = product.carousel_position !== 'after_plan';
+            const renderCarousel = () => {
+              if (!product.gallery_images || product.gallery_images.length === 0) return null;
               return (
-                <div className="single-plan-card">
-                  <div className="plan-details">
-                    <span className="plan-title">{activePlan.name}</span>
+                <div className={`preview-carousel-wrapper size-${product.preview_size || '300x300'}`}>
+                  <div className="preview-carousel-track">
+                    {[...product.gallery_images, ...product.gallery_images].map((imgUrl, idx) => (
+                      <div key={idx} className="preview-carousel-item">
+                        <img src={imgUrl} alt={`Prévia ${idx + 1}`} />
+                      </div>
+                    ))}
                   </div>
-                  {(product.show_price !== false || product.show_period !== false) && (
-                    <div className="plan-price-block">
-                      {product.show_price !== false && (
-                        <span className="plan-price">{formatCurrency(activePlan.amount)}</span>
-                      )}
-                      {product.show_period !== false && (
-                        <span className="plan-period">a cada {formatPeriodicity(activePlan.periodicity_days)}</span>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
-            })()}
+            };
 
-            {/* Lista de Benefícios do Produto */}
-            {product.custom_features && product.custom_features.length > 0 && (
-              <div className="benefits-container">
-                <div className="benefits-list">
-                  {product.custom_features.map((feature, idx) => (
-                    <div key={idx} className="benefit-item">
-                      <span className="benefit-check">✓</span>
-                      <span className="benefit-text">{feature}</span>
+            return (
+              <>
+                {showBefore && renderCarousel()}
+
+                {/* 1. Plano Único (Texto/Preço Solto sem Container) */}
+                {(() => {
+                  const activePlan = plan ?? { name: 'Plano VIP', amount: 0, periodicity_days: 7 };
+                  return (
+                    <div className="single-plan-clean">
+                      <div className="plan-details">
+                        <span className="plan-title">{activePlan.name}</span>
+                      </div>
+                      {(product.show_price !== false || product.show_period !== false) && (
+                        <div className="plan-price-block">
+                          {product.show_price !== false && (
+                            <span className="plan-price">{formatCurrency(activePlan.amount)}</span>
+                          )}
+                          {product.show_period !== false && (
+                            <span className="plan-period">a cada {formatPeriodicity(activePlan.periodicity_days)}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  );
+                })()}
 
+                {/* 2. Descrição do Produto (Texto Solto sem Caixa/Container) */}
+                {product.show_description !== false && product.description && (
+                  <div className="product-description-loose">
+                    <p className="product-description-text">{product.description}</p>
+                  </div>
+                )}
 
-            {/* Termos e Condições Checkbox */}
-            <div className="terms-row">
-              <label className="terms-checkbox">
-                <input type="checkbox" defaultChecked />
-                <span className="checkmark">✓</span>
-                <span>Eu li e concordo com os <strong>Termos de Uso e Prestação de Serviço</strong>.</span>
-              </label>
-            </div>
+                {/* 3. Lista de Benefícios do Produto (Card de Benefícios) */}
+                {product.custom_features && product.custom_features.length > 0 && (
+                  <div className="benefits-container">
+                    <div className="benefits-list">
+                      {product.custom_features.map((feature, idx) => (
+                        <div key={idx} className="benefit-item">
+                          <span className="benefit-check">✓</span>
+                          <span className="benefit-text">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Botão de Ação CTA */}
-            <div className="cta-action">
+                {!showBefore && renderCarousel()}
+              </>
+            );
+          })()}
+
+          {/* Termos e Condições Checkbox Reais com Modal */}
+          <div className="terms-row">
+            <label className="terms-checkbox-custom">
+              <input
+                type="checkbox"
+                className="terms-native-checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+              />
+              <span className="custom-box">
+                {acceptedTerms && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </span>
+              <span className="terms-text-label">
+                Eu li e concordo com os{' '}
+                <button
+                  type="button"
+                  className="terms-link-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowTermsModal(true);
+                  }}
+                >
+                  Termos de Uso e Prestação de Serviço
+                </button>
+              </span>
+            </label>
+          </div>
+
+          {/* Botão de Ação CTA */}
+          <div className="cta-action">
+            {acceptedTerms ? (
               <Link href={`/checkout/${product.slug}`} className="cta-button">
                 <span>{product.cta_text || 'CONTINUAR PARA SEUS DADOS'}</span>
                 <span className="cta-arrow">›</span>
               </Link>
-            </div>
-
-          </div>
-
-          {/* COLUNA DA DIREITA: Preview do Produto */}
-          <div className="right-card">
-            <div className="product-preview-card">
-              
-              {/* Banner / Foto do Produto */}
-              {product.show_banner !== false && (
-                <div className="product-banner">
-                  {product.banner_url ? (
-                    <img src={product.banner_url} alt={product.name} />
-                  ) : product.image_url ? (
-                    <img src={product.image_url} alt={product.name} />
-                  ) : (
-                    <div className="banner-placeholder">
-                      <span>🔥 {product.name}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Informações do Produto */}
-              <div className="product-card-body">
-                <h2 className="product-card-title">{product.name}</h2>
-                
-                {product.show_description !== false && product.description && (
-                  <p className="product-card-desc">{product.description}</p>
-                )}
-
-
-              </div>
-
-            </div>
+            ) : (
+              <button
+                type="button"
+                className="cta-button disabled"
+                onClick={() => alert('Por favor, marque a caixa de aceite dos Termos de Uso para continuar.')}
+              >
+                <span>{product.cta_text || 'CONTINUAR PARA SEUS DADOS'}</span>
+                <span className="cta-arrow">›</span>
+              </button>
+            )}
           </div>
 
         </div>
       </div>
+
+      {/* Modal de Termos de Uso */}
+      {showTermsModal && (
+        <div className="terms-modal-overlay" onClick={() => setShowTermsModal(false)}>
+          <div className="terms-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="terms-modal-header">
+              <h3>Termos de Uso e Prestação de Serviço</h3>
+              <button type="button" className="terms-modal-close" onClick={() => setShowTermsModal(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="terms-modal-body">
+              <h4>1. Aceitação dos Termos</h4>
+              <p>Ao assinar o produto <strong>{product.name}</strong>, você declara ter lido, compreendido e concordado integralmente com todos os termos e condições descritos neste documento.</p>
+
+              <h4>2. Acesso ao Conteúdo Exclusivo</h4>
+              <p>A assinatura concede acesso individual e intransferível à comunidade VIP e aos conteúdos disponibilizados pelo criador durante o período de vigência da sua assinatura.</p>
+
+              <h4>3. Direitos Autorais e Proteção de Conteúdo</h4>
+              <p>Todo o material disponibilizado (vídeos, fotos, áudios, textos) é protegido por direitos autorais. É estritamente proibido gravar, copiar, compartilhar ou redistribuir qualquer conteúdo sob pena de cancelamento imediato sem reembolso e medidas judiciais cabíveis.</p>
+
+              <h4>4. Renovação e Cobrança Recorrente</h4>
+              <p>A assinatura é cobrada de forma recorrente de acordo com o plano selecionado. O cancelamento pode ser efetuado a qualquer momento através do suporte ou da plataforma de pagamento.</p>
+
+              <h4>5. Política de Cancelamento e Reembolso</h4>
+              <p>Em conformidade com o Código de Defesa do Consumidor, o assinante tem o direito de solicitar o reembolso integral em até 7 (sete) dias corridos a contar da confirmação do pagamento inicial.</p>
+            </div>
+
+            <div className="terms-modal-footer">
+              <button
+                type="button"
+                className="terms-modal-accept-btn"
+                onClick={() => {
+                  setAcceptedTerms(true);
+                  setShowTermsModal(false);
+                }}
+              >
+                Entendi e Concordo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ESTILOS DE TEMAS */}
       <style>{`
@@ -313,27 +397,58 @@ export default function LandingClient({
         }
 
         .view-container {
-          max-width: 1100px;
-          margin: 20px auto 0;
-          padding: 0 16px;
+          max-width: 760px;
+          margin: 0 auto;
+          padding: 32px 16px 0;
         }
 
-        .view-grid {
-          display: grid;
-          grid-template-columns: 1fr 380px;
-          gap: 28px;
-          align-items: start;
+        /* Banner Horizontal no Topo da Tela (Sem Bordas Arredondadas) */
+        .top-banner-wrapper {
+          width: 100%;
+          height: 220px;
+          border-radius: 0;
+          overflow: hidden;
+          margin-bottom: 24px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+          position: relative;
+          background-color: #18181b;
         }
 
-        /* COLUNA DA ESQUERDA */
+        .top-banner-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 0;
+        }
+
+        @media (max-width: 640px) {
+          .view-container {
+            padding: 16px 12px 0;
+          }
+          .left-card {
+            padding: 22px 18px;
+            gap: 16px;
+          }
+          .top-banner-wrapper {
+            height: 160px;
+            border-radius: 0;
+            margin-bottom: 16px;
+          }
+        }
+
+        /* CARD PRINCIPAL DO CHECKOUT */
         .left-card {
           background: var(--card-bg);
-          border-radius: 12px;
+          border-radius: 14px;
           padding: 32px;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
           display: flex;
           flex-direction: column;
           gap: 20px;
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+          box-sizing: border-box;
         }
 
         .creator-header {
@@ -437,38 +552,110 @@ export default function LandingClient({
           font-size: 11px;
         }
 
-        /* CARD DO PLANO ÚNICO (Elegante & Limpo sem Fundo Azul Forte) */
-        .single-plan-card {
-          background-color: var(--card-bg);
-          border: 1px solid rgba(0, 0, 0, 0.12);
+        /* CARROSSEL DE PRÉVIAS INFINITO (PROPORÇÃO 1:1) */
+        .preview-carousel-wrapper {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
+          position: relative;
+          border-radius: 14px;
+          margin-bottom: 16px;
+          box-sizing: border-box;
+          mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+          -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+        }
+
+        .preview-carousel-track {
+          display: flex;
+          gap: 12px;
+          width: max-content;
+          animation: marqueeRight 24s linear infinite;
+        }
+
+        .preview-carousel-track:hover {
+          animation-play-state: paused;
+        }
+
+        @keyframes marqueeRight {
+          0% {
+            transform: translateX(-50%);
+          }
+          100% {
+            transform: translateX(0%);
+          }
+        }
+
+        .preview-carousel-item {
+          flex-shrink: 0;
+          aspect-ratio: 1 / 1;
           border-radius: 12px;
-          padding: 22px 24px;
+          overflow: hidden;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          background-color: #000000;
+        }
+
+        .theme-dark_vip .preview-carousel-item,
+        .theme-hot_red .preview-carousel-item,
+        .theme-neon_pink .preview-carousel-item,
+        .theme-midnight_purple .preview-carousel-item {
+          border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .preview-carousel-item img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        /* Resoluções Configuráveis das Prévias (1:1) */
+        .size-30x30 .preview-carousel-item { width: 30px; height: 30px; border-radius: 6px; }
+        .size-50x50 .preview-carousel-item { width: 50px; height: 50px; border-radius: 8px; }
+        .size-100x100 .preview-carousel-item { width: 100px; height: 100px; border-radius: 10px; }
+        .size-200x200 .preview-carousel-item { width: 160px; height: 160px; border-radius: 12px; }
+        .size-300x300 .preview-carousel-item { width: 240px; height: 240px; border-radius: 12px; }
+        .size-400x400 .preview-carousel-item { width: 320px; height: 320px; border-radius: 14px; }
+        .size-500x500 .preview-carousel-item { width: 400px; height: 400px; border-radius: 16px; }
+
+        @media (max-width: 768px) {
+          .size-30x30 .preview-carousel-item { width: 28px; height: 28px; }
+          .size-50x50 .preview-carousel-item { width: 44px; height: 44px; }
+          .size-100x100 .preview-carousel-item { width: 85px; height: 85px; }
+          .size-200x200 .preview-carousel-item { width: 140px; height: 140px; }
+          .size-300x300 .preview-carousel-item { width: 200px; height: 200px; }
+          .size-400x400 .preview-carousel-item { width: 260px; height: 260px; }
+          .size-500x500 .preview-carousel-item { width: 300px; height: 300px; }
+        }
+
+        /* PLANO ÚNICO (Elegante & Limpo sem Container/Borda) */
+        .single-plan-clean {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          transition: border-color 0.2s ease;
+          padding: 8px 0 16px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
         }
 
-        .theme-dark_vip .single-plan-card,
-        .theme-hot_red .single-plan-card,
-        .theme-neon_pink .single-plan-card,
-        .theme-midnight_purple .single-plan-card {
-          border-color: rgba(255, 255, 255, 0.14);
+        .theme-dark_vip .single-plan-clean,
+        .theme-hot_red .single-plan-clean,
+        .theme-neon_pink .single-plan-clean,
+        .theme-midnight_purple .single-plan-clean {
+          border-bottom-color: rgba(255, 255, 255, 0.08);
         }
 
-        .single-plan-card .plan-title {
-          font-size: 18px;
+        .single-plan-clean .plan-title {
+          font-size: 19px;
           font-weight: 800;
           color: var(--text-title);
         }
 
-        .single-plan-card .plan-price {
+        .single-plan-clean .plan-price {
           font-size: 22px;
           font-weight: 900;
           color: var(--text-title);
         }
 
-        .single-plan-card .plan-period {
+        .single-plan-clean .plan-period {
           font-size: 12.5px;
           color: var(--text-sub);
           font-weight: 500;
@@ -509,6 +696,19 @@ export default function LandingClient({
           color: #10b981;
           font-weight: 900;
           font-size: 15px;
+        }
+
+        /* DESCRIÇÃO DO PRODUTO (TEXTO SOLTO SEM CONTAINER / CAIXA CINZA) */
+        .product-description-loose {
+          padding: 2px 0;
+        }
+
+        .product-description-text {
+          font-size: 14.5px;
+          color: var(--text-sub);
+          line-height: 1.6;
+          margin: 0;
+          white-space: pre-wrap;
         }
 
         /* CARD DO PLANO SELECIONADO */
@@ -591,38 +791,194 @@ export default function LandingClient({
           gap: 4px;
         }
 
-        /* TERMOS */
+        /* TERMOS E CHECKBOX REAL INTERATIVO */
         .terms-row {
           margin-top: 4px;
         }
 
-        .terms-checkbox {
+        .terms-checkbox-custom {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 10px;
-          font-size: 12.5px;
-          color: var(--text-sub);
           cursor: pointer;
-          background: #f8fafc;
-          padding: 12px 16px;
-          border-radius: 6px;
+          user-select: none;
+          padding: 4px 0;
         }
 
-        .terms-checkbox input {
-          display: none;
+        .terms-checkbox-custom input,
+        .terms-native-checkbox {
+          display: none !important;
+          opacity: 0 !important;
+          width: 0 !important;
+          height: 0 !important;
+          position: absolute !important;
+          pointer-events: none !important;
         }
 
-        .checkmark {
+        .custom-box {
           width: 18px;
           height: 18px;
-          background: #10b981;
-          color: #fff;
           border-radius: 4px;
+          border: 2px solid #71717a;
+          background-color: transparent;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 12px;
+          color: #ffffff;
+          flex-shrink: 0;
+          margin-top: 2px;
+          transition: all 0.15s ease;
+        }
+
+        .terms-checkbox-custom input[type="checkbox"]:checked + .custom-box {
+          background-color: #10b981;
+          border-color: #10b981;
+        }
+
+        .terms-text-label {
+          font-size: 13px;
+          color: var(--text-sub);
+          line-height: 1.45;
+        }
+
+        .terms-link-btn {
+          background: none;
+          border: none;
+          padding: 0;
+          color: var(--text-title);
+          font-weight: 700;
+          text-decoration: underline;
+          cursor: pointer;
+          font-size: 13px;
+          font-family: inherit;
+          display: inline;
+        }
+
+        .terms-link-btn:hover {
+          color: var(--accent-blue);
+        }
+
+        /* MODAL DE TERMOS DE USO */
+        .terms-modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background-color: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(4px);
+          z-index: 99999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+
+        .terms-modal-card {
+          background-color: var(--card-bg);
+          color: var(--text-title);
+          width: 100%;
+          max-width: 580px;
+          max-height: 85vh;
+          border-radius: 16px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terms-modal-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .theme-dark_vip .terms-modal-header,
+        .theme-hot_red .terms-modal-header,
+        .theme-neon_pink .terms-modal-header,
+        .theme-midnight_purple .terms-modal-header {
+          border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .terms-modal-header h3 {
+          font-size: 17px;
           font-weight: 800;
+          margin: 0;
+          color: var(--text-title);
+        }
+
+        .terms-modal-close {
+          background: none;
+          border: none;
+          color: var(--text-sub);
+          font-size: 18px;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 6px;
+          transition: color 0.15s ease;
+        }
+
+        .terms-modal-close:hover {
+          color: var(--text-title);
+        }
+
+        .terms-modal-body {
+          padding: 24px;
+          overflow-y: auto;
+          font-size: 14px;
+          line-height: 1.6;
+          color: var(--text-sub);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .terms-modal-body h4 {
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--text-title);
+          margin: 8px 0 2px 0;
+        }
+
+        .terms-modal-body p {
+          margin: 0;
+        }
+
+        .terms-modal-footer {
+          padding: 16px 24px;
+          border-top: 1px solid rgba(0, 0, 0, 0.08);
+          background-color: rgba(0, 0, 0, 0.02);
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .theme-dark_vip .terms-modal-footer,
+        .theme-hot_red .terms-modal-footer,
+        .theme-neon_pink .terms-modal-footer,
+        .theme-midnight_purple .terms-modal-footer {
+          border-top-color: rgba(255, 255, 255, 0.08);
+          background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .terms-modal-accept-btn {
+          background-color: #10b981;
+          color: #ffffff;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: opacity 0.2s ease;
+        }
+
+        .terms-modal-accept-btn:hover {
+          opacity: 0.9;
+        }
+
+        .cta-button.disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         /* CTA BUTTON */
@@ -733,7 +1089,7 @@ export default function LandingClient({
 
         @media (max-width: 860px) {
           .view-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
           }
           .right-card {
             order: -1;

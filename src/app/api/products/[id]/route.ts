@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAdminSession } from '@/lib/auth';
 import { query, queryOne } from '@/lib/db';
 import { cleanupUnusedUploads } from '@/lib/cleanup-uploads';
+import { ensureColumns } from '../route';
 
 const updateSchema = z.object({
   slug: z.string().min(2).max(60).regex(/^[a-z0-9-]+$/).optional(),
@@ -12,6 +13,9 @@ const updateSchema = z.object({
   banner_url: z.string().optional().nullable(),
   creator_name: z.string().optional().nullable(),
   theme_color: z.string().optional(),
+  gallery_images: z.array(z.string()).optional(),
+  preview_size: z.enum(['30x30', '50x50', '100x100', '200x200', '300x300', '400x400', '500x500']).optional(),
+  carousel_position: z.enum(['before_plan', 'after_plan']).optional(),
   syncpay_plan_id: z.string().min(1).optional(),
   telegram_chat_id: z.string().optional().nullable(),
   telegram_chat_name: z.string().optional().nullable(),
@@ -33,6 +37,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await ensureColumns();
   const { id } = await params;
   const product = await queryOne('SELECT * FROM products WHERE id = $1', [id]);
   if (!product) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
@@ -44,6 +49,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await ensureColumns();
   const isAdmin = await getAdminSession();
   if (!isAdmin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
@@ -60,11 +66,11 @@ export async function PUT(
     }
 
     const setClauses = fields.map((field, i) => {
-      if (field === 'custom_features') return `${field} = $${i + 1}::jsonb`;
+      if (field === 'custom_features' || field === 'gallery_images') return `${field} = $${i + 1}::jsonb`;
       return `${field} = $${i + 1}`;
     });
     const values = fields.map((field) => {
-      if (field === 'custom_features') return JSON.stringify(data[field]);
+      if (field === 'custom_features' || field === 'gallery_images') return JSON.stringify(data[field]);
       return data[field];
     });
 

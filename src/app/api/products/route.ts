@@ -15,6 +15,9 @@ interface Product {
   banner_url: string | null;
   creator_name: string | null;
   theme_color: string;
+  gallery_images: string[];
+  preview_size: string;
+  carousel_position: string;
   type: string;
   billing_type: string;
   syncpay_plan_id: string;
@@ -48,6 +51,9 @@ const productSchema = z.object({
   banner_url: z.string().optional().nullable(),
   creator_name: z.string().optional().nullable(),
   theme_color: z.string().default('clean_light'),
+  gallery_images: z.array(z.string()).default([]),
+  preview_size: z.enum(['30x30', '50x50', '100x100', '200x200', '300x300', '400x400', '500x500']).default('300x300'),
+  carousel_position: z.enum(['before_plan', 'after_plan']).default('before_plan'),
   type: z.enum(['telegram_group', 'external_community']).default('telegram_group'),
   billing_type: z.enum(['subscription']).default('subscription'),
   syncpay_plan_id: z.string().min(1),
@@ -66,19 +72,24 @@ const productSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
-async function ensureColumns() {
+export async function ensureColumns() {
   try {
-    await query(`
-      ALTER TABLE products ADD COLUMN IF NOT EXISTS creator_name TEXT;
-      ALTER TABLE products ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT 'clean_light';
-      ALTER TABLE products ADD COLUMN IF NOT EXISTS show_creator BOOLEAN DEFAULT TRUE;
-      ALTER TABLE products ADD COLUMN IF NOT EXISTS show_banner BOOLEAN DEFAULT TRUE;
-    `);
-  } catch { /* tabela pode estar ok */ }
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS creator_name TEXT;`);
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT 'clean_light';`);
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS show_creator BOOLEAN DEFAULT TRUE;`);
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS show_banner BOOLEAN DEFAULT TRUE;`);
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS gallery_images JSONB DEFAULT '[]'::jsonb;`);
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS preview_size TEXT DEFAULT '300x300';`);
+    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'before_plan';`);
+  } catch (err) {
+    console.error('ensureColumns error:', err);
+  }
 }
 
 // GET /api/products — lista pública (apenas ativos)
 export async function GET(request: NextRequest) {
+  await ensureColumns();
+
   const { searchParams } = new URL(request.url);
   const adminMode = searchParams.get('admin') === 'true';
 
@@ -122,19 +133,22 @@ export async function POST(request: NextRequest) {
     const [product] = await query<Product>(
       `INSERT INTO products (
         id, slug, name, description, image_url, banner_url, creator_name, theme_color,
+        gallery_images, preview_size, carousel_position,
         type, billing_type, syncpay_plan_id, telegram_chat_id, telegram_chat_name,
         telegram_invite_link, bot_setup_done, show_price, show_description, show_period,
         show_creator, show_banner, show_features, custom_features, cta_text, is_active
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
-        $9, $10, $11, $12, $13,
-        $14, $15, $16, $17, $18,
-        $19, $20, $21, $22::jsonb, $23, $24
+        $9::jsonb, $10, $11,
+        $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21,
+        $22, $23, $24, $25::jsonb, $26, $27
       ) RETURNING *`,
       [
         id, data.slug, data.name, data.description ?? null,
         data.image_url || null, data.banner_url || null,
         data.creator_name || null, data.theme_color || 'clean_light',
+        JSON.stringify(data.gallery_images), data.preview_size, data.carousel_position,
         data.type, data.billing_type,
         data.syncpay_plan_id,
         data.telegram_chat_id ?? null, data.telegram_chat_name ?? null,

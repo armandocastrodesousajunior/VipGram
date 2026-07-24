@@ -73,6 +73,7 @@ export async function syncpayFetch(
 
 export interface SyncPayPlan {
   id: string | number;
+  token?: string;
   name: string;
   description?: string;
   amount: number | string;
@@ -134,15 +135,32 @@ export interface CreateSubscriberInput {
 export async function createSubscriber(
   input: CreateSubscriberInput
 ): Promise<SyncPaySubscription> {
-  const res = await syncpayFetch('/api/partner/v1/subscriptions', {
+  const plan = await getPlan(input.plan_id);
+  const targetId = plan.token || plan.id || input.plan_id;
+
+  const res = await syncpayFetch(`/api/partner/v1/subscription-plans/${targetId}/enroll`, {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      name: input.name,
+      email: input.email,
+      document: input.cpf,
+      phone: input.phone,
+    }),
   });
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Erro ao criar assinante: ${res.status} ${err}`);
   }
-  return res.json();
+  const rawData = await res.json();
+  const data = rawData.data ?? rawData;
+  
+  return {
+    ...data,
+    id: data.id ?? data.subscription_token,
+    status: data.status,
+    pix_qr_code: data.pix_qr_code ?? data.payment?.qr_code_base64,
+    pix_qr_code_text: data.pix_qr_code_text ?? data.payment?.pix_code ?? data.payment?.qr_code,
+  } as SyncPaySubscription;
 }
 
 export async function getSubscription(

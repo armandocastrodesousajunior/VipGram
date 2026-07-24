@@ -64,10 +64,50 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     show_period: true,
     is_active: true,
     custom_features: [] as string[],
+    gallery_images: [] as string[],
+    preview_size: '300x300',
+    carousel_position: 'before_plan',
   });
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // Gallery Upload State
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+
+  async function handleGalleryUpload(files: FileList) {
+    setUploadingGallery(true);
+    const newUrls: string[] = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const data = new FormData();
+        data.append('file', files[i]);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: data,
+        });
+        const json = await res.json();
+        if (res.ok && json.url) {
+          newUrls.push(json.url);
+        }
+      }
+      setForm((prev) => ({
+        ...prev,
+        gallery_images: [...prev.gallery_images, ...newUrls],
+      }));
+    } catch {
+      alert('Erro de conexão ao enviar prévias');
+    } finally {
+      setUploadingGallery(false);
+    }
+  }
+
+  function removeGalleryImage(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      gallery_images: prev.gallery_images.filter((_, i) => i !== index),
+    }));
+  }
 
   // Carrega produto e planos
   useEffect(() => {
@@ -92,6 +132,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             show_period: p.show_period ?? true,
             is_active: p.is_active ?? true,
             custom_features: Array.isArray(p.custom_features) ? p.custom_features : [],
+            gallery_images: Array.isArray(p.gallery_images) ? p.gallery_images : [],
+            preview_size: p.preview_size ?? '300x300',
+            carousel_position: p.carousel_position ?? 'before_plan',
           });
         }
         if (plansData.error) setPlansError(plansData.error);
@@ -563,6 +606,107 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Carrossel de Prévias (Opcional) */}
+            <div className="field-group mt-6">
+              <div className="flex-between mb-2">
+                <label className="field-label">Carrossel de Prévias (Opcional — Proporção 1:1)</label>
+              </div>
+
+              <div className="grid-3 mb-4">
+                <div className="field-group">
+                  <label className="field-label">Posição do Carrossel</label>
+                  <select
+                    className="field-input"
+                    value={form.carousel_position}
+                    onChange={(e) => setField('carousel_position', e.target.value)}
+                  >
+                    <option value="before_plan">Antes do Card do Plano (Topo)</option>
+                    <option value="after_plan">Depois do Card do Plano (Abaixo)</option>
+                  </select>
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label">Resolução das Prévias</label>
+                  <select
+                    className="field-input"
+                    value={form.preview_size}
+                    onChange={(e) => setField('preview_size', e.target.value)}
+                  >
+                    <option value="30x30">30 x 30 px (Super Mini)</option>
+                    <option value="50x50">50 x 50 px (Mini)</option>
+                    <option value="100x100">100 x 100 px (Pequeno)</option>
+                    <option value="200x200">200 x 200 px (Médio)</option>
+                    <option value="300x300">300 x 300 px (Grande — Padrão)</option>
+                    <option value="400x400">400 x 400 px (Extra Grande)</option>
+                    <option value="500x500">500 x 500 px (Máximo)</option>
+                  </select>
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label">Adicionar Fotos da Galeria</label>
+                  <div className="upload-dropzone">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      id="gallery-edit-upload"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          handleGalleryUpload(e.target.files);
+                        }
+                      }}
+                    />
+                    <label htmlFor="gallery-edit-upload" className="btn-upload-trigger">
+                      {uploadingGallery ? (
+                        <span className="flex-center gap-2">
+                          <div className="spinner-mono" />
+                          <span>Enviando prévias...</span>
+                        </span>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                          <span>+ Upload de Fotos</span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="recommendation-notice mb-4">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>Recomendamos enviar <strong>no mínimo 6 prévias</strong> para que o carrossel passe de forma infinita e fluida na página do produto.</span>
+              </div>
+
+              {/* Grid de Thumbnails da Galeria */}
+              {form.gallery_images.length > 0 && (
+                <div className="gallery-grid-mono">
+                  {form.gallery_images.map((imgUrl, idx) => (
+                    <div key={idx} className="gallery-thumb-card">
+                      <img src={imgUrl} alt={`Prévia ${idx + 1}`} />
+                      <button
+                        type="button"
+                        className="gallery-thumb-delete"
+                        onClick={() => removeGalleryImage(idx)}
+                        title="Remover prévia"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -1097,6 +1241,64 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         .btn-remove-feature:hover {
           background-color: rgba(239, 68, 68, 0.1);
           border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Gallery Grid Admin */
+        .recommendation-notice {
+          padding: 12px 14px;
+          background-color: rgba(59, 130, 246, 0.08);
+          border: 1px solid rgba(59, 130, 246, 0.2);
+          border-radius: 8px;
+          color: #60a5fa;
+          font-size: 12.5px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .gallery-grid-mono {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .gallery-thumb-card {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid #27272a;
+          background-color: #09090b;
+        }
+
+        .gallery-thumb-card img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .gallery-thumb-delete {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background-color: rgba(0, 0, 0, 0.75);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          font-size: 11px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+        }
+
+        .gallery-thumb-delete:hover {
+          background-color: #ef4444;
         }
 
         /* Actions */

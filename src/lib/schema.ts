@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS subscribers_meta (
   delivery_error             TEXT,
 
   payment_status             TEXT,
+  pix_code                   TEXT,
+  pix_expires_at             TIMESTAMPTZ,
   created_at                 TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -69,6 +71,10 @@ CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
 CREATE INDEX IF NOT EXISTS idx_subscribers_subscription ON subscribers_meta(syncpay_subscription_id);
 CREATE INDEX IF NOT EXISTS idx_subscribers_product ON subscribers_meta(product_id);
 CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers_meta(customer_email);
+
+-- Migrations (seguras para rodar em banco já existente)
+ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_code TEXT;
+ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_expires_at TIMESTAMPTZ;
 
 -- Trigger para updated_at automático
 CREATE OR REPLACE FUNCTION update_updated_at_column()
