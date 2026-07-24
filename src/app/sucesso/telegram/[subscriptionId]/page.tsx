@@ -57,26 +57,24 @@ export default function SucessoTelegramPage({
     if (!subscriptionId || calledRef.current) return;
     calledRef.current = true;
 
-    deliver(subscriptionId);
+    fetchBotInfo();
   }, [subscriptionId]);
 
-  async function deliver(id: string) {
+  async function fetchBotInfo() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/telegram/deliver', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription_id: id }),
-      });
+      const res = await fetch('/api/telegram/bot-info');
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Erro ao gerar link de acesso');
+        setError(data.error ?? 'Erro ao obter informações do bot.');
         return;
       }
-      setInviteLink(data.invite_link);
+      // Construir o link para o bot com o start param
+      const url = `https://t.me/${data.username}?start=${subscriptionId}`;
+      setInviteLink(url);
     } catch {
-      setError('Erro de conexão ao gerar link. Tente novamente.');
+      setError('Erro de conexão. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -85,7 +83,7 @@ export default function SucessoTelegramPage({
   async function retry() {
     setRetrying(true);
     calledRef.current = false;
-    await deliver(subscriptionId);
+    await fetchBotInfo();
     setRetrying(false);
   }
 
@@ -123,11 +121,11 @@ export default function SucessoTelegramPage({
             {/* Link de acesso */}
             <div className="sucesso-link-card">
               <div className="sucesso-link-header">
-                <span>🔗</span>
-                <span>Seu link de acesso exclusivo</span>
+                <span>🤖</span>
+                <span>Inicie a conversa com o nosso Bot</span>
               </div>
               <p className="sucesso-link-warning">
-                ⚠️ Este link é de uso único e expira em 24 horas. Use agora!
+                ⚠️ Seu acesso será liberado automaticamente pelo bot através deste link.
               </p>
               <a
                 href={inviteLink}
@@ -136,7 +134,7 @@ export default function SucessoTelegramPage({
                 className="btn btn-primary btn-xl btn-full sucesso-cta"
               >
                 <span>📱</span>
-                <span>Acessar Grupo VIP no Telegram</span>
+                <span>Falar com o Bot no Telegram</span>
               </a>
               <div className="sucesso-link-text">
                 <span>Link:</span>
@@ -151,9 +149,9 @@ export default function SucessoTelegramPage({
               </p>
               {[
                 'Clique no botão acima',
-                'O Telegram abrirá automaticamente',
-                'Clique em "Entrar no Grupo"',
-                'Pronto! Você já é membro VIP 🎊',
+                'O Telegram abrirá na conversa com o nosso Bot',
+                'Clique em "Começar" ou "Start"',
+                'O bot enviará o seu link de acesso exclusivo ao grupo VIP! 🎊',
               ].map((step, i) => (
                 <div key={i} className="sucesso-step">
                   <div className="sucesso-step-num">{i + 1}</div>
@@ -163,7 +161,7 @@ export default function SucessoTelegramPage({
             </div>
 
             <p className="sucesso-footer">
-              Salve o link acima. Em caso de problemas, entre em contato com o suporte.
+              Em caso de problemas técnicos, entre em contato com o suporte.
             </p>
           </>
         ) : (

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS products (
   telegram_chat_id     TEXT,
   telegram_chat_name   TEXT,
   telegram_invite_link TEXT,
+  telegram_sync_token  TEXT,
   bot_setup_done       BOOLEAN DEFAULT FALSE,
 
   -- Exibição no checkout/landing
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS subscribers_meta (
   telegram_user_id           BIGINT,
   bot_delivered              BOOLEAN DEFAULT FALSE,
   bot_delivered_at           TIMESTAMPTZ,
+  in_group                   BOOLEAN DEFAULT FALSE,
   invite_link                TEXT,
   delivery_error             TEXT,
 

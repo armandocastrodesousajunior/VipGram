@@ -5,9 +5,14 @@ import Link from 'next/link';
 
 interface Subscriber {
   id: string;
-  customer?: { name?: string; email?: string };
   status: string;
   created_at: string;
+  customer: {
+    name: string;
+    email: string;
+  };
+  telegram_username?: string;
+  in_group?: boolean;
 }
 
 interface DashboardStats {
@@ -112,6 +117,8 @@ export default function DashboardPage() {
                   <th>Email</th>
                   <th>Status</th>
                   <th>Data</th>
+                  <th>Telegram</th>
+                  <th>No Grupo</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,6 +130,28 @@ export default function DashboardPage() {
                     <td>{s.customer?.email ?? '—'}</td>
                     <td>{statusBadge(s.status)}</td>
                     <td>{new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
+                    <td>
+                      {s.telegram_username ? (
+                        <a 
+                          href={`https://t.me/${s.telegram_username}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: 'var(--accent)', textDecoration: 'none' }}
+                        >
+                          @{s.telegram_username}
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>Não vinculado</span>
+                      )}
+                    </td>
+                    <td>
+                      {s.in_group ? (
+                        <span className="badge badge-success" style={{ fontSize: 11 }}>Sim</span>
+                      ) : (
+                        <span className="badge" style={{ fontSize: 11, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>Não</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

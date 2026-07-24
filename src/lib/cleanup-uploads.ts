@@ -17,8 +17,8 @@ export async function cleanupUnusedUploads() {
     if (filesOnDisk.length === 0) return;
 
     // Busca todas as URLs cadastradas no banco de dados
-    const products = await query<{ image_url: string | null; banner_url: string | null }>(
-      'SELECT image_url, banner_url FROM products'
+    const products = await query<{ image_url: string | null; banner_url: string | null; gallery_images: any }>(
+      'SELECT image_url, banner_url, gallery_images FROM products'
     );
 
     const usedFiles = new Set<string>();
@@ -29,6 +29,23 @@ export async function cleanupUnusedUploads() {
       }
       if (p.banner_url && p.banner_url.includes('/uploads/')) {
         usedFiles.add(path.basename(p.banner_url));
+      }
+
+      if (p.gallery_images) {
+        let gallery: string[] = [];
+        if (typeof p.gallery_images === 'string') {
+          try {
+            gallery = JSON.parse(p.gallery_images);
+          } catch { /* ignora */ }
+        } else if (Array.isArray(p.gallery_images)) {
+          gallery = p.gallery_images;
+        }
+
+        for (const url of gallery) {
+          if (typeof url === 'string' && url.includes('/uploads/')) {
+            usedFiles.add(path.basename(url));
+          }
+        }
       }
     }
 

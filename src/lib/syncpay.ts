@@ -96,6 +96,9 @@ export interface SyncPaySubscription {
   pix_qr_code_text?: string;
   next_billing_date?: string;
   created_at: string;
+  telegram_username?: string;
+  telegram_user_id?: string;
+  in_group?: boolean;
 }
 
 // ─── Helpers de API ──────────────────────────────────────────────────────────

@@ -36,14 +36,89 @@ export default function ProductsPage() {
   const [chatId, setChatId] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [botInfo, setBotInfo] = useState<BotVerification | null>(null);
+  const [botUsername, setBotUsername] = useState('');
+  const [syncToken, setSyncToken] = useState('');
   const [botError, setBotError] = useState('');
+
+  // Health Check Modal State
+  const [healthModalOpen, setHealthModalOpen] = useState(false);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthData, setHealthData] = useState<{ dbLinked: boolean, botInGroup: boolean, botIsAdmin: boolean, error: string } | null>(null);
+
+  async function openHealthModal(product: Product) {
+    setSelectedProduct(product);
+    setHealthModalOpen(true);
+    setHealthLoading(true);
+    setHealthData(null);
+    try {
+      const res = await fetch(`/api/products/${product.id}/telegram-verify`);
+      const data = await res.json();
+      setHealthData(data);
+    } catch (e) {
+      setHealthData({ dbLinked: false, botInGroup: false, botIsAdmin: false, error: 'Erro de rede ao verificar' });
+    } finally {
+      setHealthLoading(false);
+    }
+  }
 
   useEffect(() => {
     fetch('/api/products?admin=true')
       .then((r) => r.json())
       .then(({ products }) => { setProducts(products ?? []); setLoading(false); })
       .catch(() => setLoading(false));
+
+    fetch('/api/telegram/bot-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data.username) setBotUsername(data.username);
+      })
+      .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (botStep === 2 && syncModalOpen && selectedProduct) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/products/${selectedProduct.id}/telegram-status`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.bot_setup_done) {
+              setBotInfo({ chatTitle: data.telegram_chat_name || 'Grupo VIP', chatType: 'group', botIsAdmin: true, canInvite: true });
+              setBotStep(3);
+              setProducts((prev) =>
+                prev.map((p) => (p.id === selectedProduct.id ? { ...p, bot_setup_done: true, telegram_chat_name: data.telegram_chat_name } : p))
+              );
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [botStep, syncModalOpen, selectedProduct]);
+
+  async function generateTokenAndAdvance() {
+    if (!selectedProduct) return;
+    setVerifying(true);
+    try {
+      const res = await fetch(`/api/products/${selectedProduct.id}/sync-token`, { method: 'POST' });
+      if (!res.ok) {
+        console.error('Failed to generate token, status:', res.status);
+        return;
+      }
+      const data = await res.json();
+      if (data.token) {
+        setSyncToken(data.token);
+        setBotStep(2);
+      }
+    } catch (e) {
+      console.error('Error generating token:', e);
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   async function toggleActive(id: string, current: boolean) {
     await fetch(`/api/products/${id}`, {
@@ -214,6 +289,20 @@ export default function ProductsPage() {
                   <span>Editar</span>
                 </Link>
 
+                <Link
+                  href={`/admin/products/${product.id}/subscribers`}
+                  className="action-btn"
+                  title="Ver Assinantes"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <span>Assinantes</span>
+                </Link>
+
                 {!product.bot_setup_done ? (
                   <button
                     type="button"
@@ -227,18 +316,32 @@ export default function ProductsPage() {
                     <span>Sincronizar Bot</span>
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="action-btn"
-                    onClick={() => openSyncModal(product)}
-                    title="Configuração do Bot"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="3"/>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                    <span>Gerenciar Bot</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      onClick={() => openHealthModal(product)}
+                      title="Verificar Saúde da Conexão"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                      <span>Checar</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      onClick={() => openSyncModal(product)}
+                      title="Configuração do Bot"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                      </svg>
+                      <span>Gerenciar Bot</span>
+                    </button>
+                  </>
                 )}
 
                 <button
@@ -294,12 +397,17 @@ export default function ProductsPage() {
                     <ol className="instructions-list">
                       <li>Abra seu Grupo ou Canal no Telegram</li>
                       <li>Acesse <strong>Membros → Adicionar administrador</strong></li>
-                      <li>Busque pelo Bot do sistema no Telegram</li>
+                      <li>Busque pelo Bot do sistema no Telegram {botUsername && <strong style={{ color: 'var(--accent)' }}>(@{botUsername})</strong>}</li>
                       <li>Ative a permissão <strong>&quot;Convidar usuários via link&quot;</strong></li>
                     </ol>
                   </div>
-                  <button type="button" className="btn-primary mt-4" onClick={() => setBotStep(2)}>
-                    Já adicionei o bot como Admin →
+                  <button 
+                    type="button" 
+                    className="btn-primary mt-4" 
+                    onClick={generateTokenAndAdvance}
+                    disabled={verifying}
+                  >
+                    {verifying ? 'Gerando Código...' : 'Já adicionei o bot como Admin →'}
                   </button>
                 </div>
               )}
@@ -307,38 +415,38 @@ export default function ProductsPage() {
               {/* Step 2 */}
               {botStep === 2 && (
                 <div className="step-content">
-                  <div className="instructions-box">
-                    <h4>Informe o ID do Grupo ou Canal</h4>
-                    <p className="subtext">
-                      Adicione o bot <code>@userinfobot</code> no grupo para obter o Chat ID (ex: <code>-1001234567890</code>).
+                  <div className="instructions-box text-center">
+                    <h4>Vincule seu Grupo</h4>
+                    <p className="subtext mt-2" style={{ marginBottom: 20 }}>
+                      Copie o código abaixo e envie como uma mensagem no seu grupo/canal do Telegram.
                     </p>
-                    <div className="field-group mt-4">
-                      <label className="field-label">Chat ID do Telegram</label>
-                      <input
-                        type="text"
-                        className={`field-input ${botError ? 'error' : ''}`}
-                        placeholder="-1001234567890 ou @canal"
-                        value={chatId}
-                        onChange={(e) => {
-                          setChatId(e.target.value);
-                          setBotError('');
-                        }}
-                      />
-                      {botError && <span className="error-text">{botError}</span>}
+                    
+                    <div style={{ 
+                      background: 'rgba(255,255,255,0.05)', 
+                      border: '1px dashed var(--border)',
+                      borderRadius: 8,
+                      padding: 20,
+                      marginBottom: 20,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 12
+                    }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>MENSAGEM DE VINCULAÇÃO:</span>
+                      <code style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1 }}>
+                        /vincular {syncToken}
+                      </code>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-muted)', fontSize: 14 }}>
+                      <span className="spinner" style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></span>
+                      Aguardando mensagem no grupo...
                     </div>
                   </div>
 
                   <div className="flex-between mt-4">
                     <button type="button" className="btn-secondary" onClick={() => setBotStep(1)}>
                       ← Voltar
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={verifyBot}
-                      disabled={verifying || !chatId}
-                    >
-                      {verifying ? 'Verificando Conexão...' : 'Verificar e Conectar'}
                     </button>
                   </div>
                 </div>
@@ -366,6 +474,53 @@ export default function ProductsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Health Check Modal */}
+      {healthModalOpen && selectedProduct && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 450 }}>
+            <div className="modal-header">
+              <h3>Health Check: {selectedProduct.name}</h3>
+              <button className="modal-close" onClick={() => setHealthModalOpen(false)}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              {healthLoading ? (
+                <div className="flex-center" style={{ flexDirection: 'column', gap: 15, padding: 40 }}>
+                  <div className="spinner" style={{ width: 30, height: 30, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                  <span style={{ color: 'var(--text-muted)' }}>Verificando conexão ao vivo...</span>
+                </div>
+              ) : healthData ? (
+                <div className="health-checklist" style={{ display: 'flex', flexDirection: 'column', gap: 15, padding: '20px 0' }}>
+                  <div className="health-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {healthData.dbLinked ? '✅' : '❌'} 
+                    <span>Vínculo do Produto no Banco de Dados</span>
+                  </div>
+                  <div className="health-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {healthData.botInGroup ? '✅' : '❌'} 
+                    <span>Bot presente no Canal/Grupo</span>
+                  </div>
+                  <div className="health-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {healthData.botIsAdmin ? '✅' : '❌'} 
+                    <span>Bot possui permissão de Administrador</span>
+                  </div>
+
+                  {healthData.error && (
+                    <div style={{ marginTop: 15, padding: 15, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 8, color: '#ef4444', fontSize: 13 }}>
+                      <strong>Aviso:</strong> {healthData.error}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 20, textAlign: 'center' }}>
+                    <button type="button" className="btn-secondary" onClick={() => setHealthModalOpen(false)}>
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
