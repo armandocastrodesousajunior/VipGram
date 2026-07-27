@@ -86,7 +86,15 @@ export default function LandingClient({
         {/* Banner Horizontal do Produto no Topo da Tela */}
         {product.show_banner !== false && product.banner_url && (
           <div className="top-banner-wrapper">
-            <img src={product.banner_url} alt={product.name} className="top-banner-img" decoding="async" fetchPriority="high" />
+            <img
+              src={product.banner_url}
+              alt={product.name}
+              className="top-banner-img"
+              decoding="async"
+              fetchPriority="high"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+            />
           </div>
         )}
 
@@ -98,7 +106,14 @@ export default function LandingClient({
             <div className="creator-header">
               <div className="creator-avatar">
                 {product.image_url ? (
-                  <img src={product.image_url} alt={creatorHandle} decoding="async" fetchPriority="high" />
+                  <img
+                    src={product.image_url}
+                    alt={creatorHandle}
+                    decoding="async"
+                    fetchPriority="high"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
                 ) : (
                   <span>{initials}</span>
                 )}
@@ -418,6 +433,10 @@ export default function LandingClient({
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
           position: relative;
           background-color: #18181b;
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
         }
 
         .top-banner-img {
@@ -425,6 +444,11 @@ export default function LandingClient({
           height: 100%;
           object-fit: cover;
           border-radius: 0;
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
+          -webkit-user-drag: none;
         }
 
         @media (max-width: 640px) {
@@ -478,12 +502,21 @@ export default function LandingClient({
           font-size: 18px;
           overflow: hidden;
           flex-shrink: 0;
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
         }
 
         .creator-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
+          -webkit-user-drag: none;
         }
 
         .creator-info h2 {
