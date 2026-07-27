@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Valida tipo do arquivo
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Formato de imagem inválido. Use JPG, PNG ou WEBP' }, { status: 400 });
+      return NextResponse.json({ error: 'Formato de imagem inválido. Use JPG, PNG, WEBP ou GIF' }, { status: 400 });
     }
 
     // Garante que o diretório public/uploads existe
