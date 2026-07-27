@@ -3,16 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-interface Subscriber {
+interface RecentSubscriber {
   id: string;
+  syncpay_subscription_id: string;
+  customer_name: string;
+  customer_email: string;
   status: string;
-  created_at: string;
-  customer: {
-    name: string;
-    email: string;
-  };
   telegram_username?: string;
-  in_group?: boolean;
+  in_group: boolean;
+  created_at: string;
+  product_name: string;
 }
 
 interface DashboardStats {
@@ -24,28 +24,17 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({ total: 0, active: 0, cancelled: 0, products: 0 });
-  const [recent, setRecent] = useState<Subscriber[]>([]);
+  const [recent, setRecent] = useState<RecentSubscriber[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [subRes, prodRes] = await Promise.all([
-          fetch('/api/syncpay/subscribers?per_page=10'),
-          fetch('/api/products?admin=true'),
-        ]);
-
-        if (subRes.ok) {
-          const { data, total } = await subRes.json();
-          const active = (data as Subscriber[]).filter((s) => s.status === 'ACTIVE').length;
-          const cancelled = (data as Subscriber[]).filter((s) => s.status === 'CANCELLED').length;
-          setStats((prev) => ({ ...prev, total: total ?? data.length, active, cancelled }));
-          setRecent((data as Subscriber[]).slice(0, 5));
-        }
-
-        if (prodRes.ok) {
-          const { products } = await prodRes.json();
-          setStats((prev) => ({ ...prev, products: products.length }));
+        const res = await fetch('/api/admin/dashboard');
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data.stats);
+          setRecent(data.recent);
         }
       } catch { /* ignora */ }
       finally { setLoading(false); }
@@ -54,11 +43,18 @@ export default function DashboardPage() {
   }, []);
 
   const statusBadge = (status: string) => {
+    const s = status?.toUpperCase() ?? '';
     const map: Record<string, string> = {
-      ACTIVE: 'badge-success', PENDING: 'badge-warning',
-      CANCELLED: 'badge-error', PAUSED: 'badge-info',
+      ACTIVE: 'badge-success', PAID: 'badge-success',
+      PENDING: 'badge-warning', PENDING_FIRST_PAYMENT: 'badge-warning',
+      CANCELLED: 'badge-error', CANCELED: 'badge-error', PAUSED: 'badge-info',
     };
-    return <span className={`badge ${map[status] ?? 'badge-info'}`}>{status}</span>;
+    const labels: Record<string, string> = {
+      ACTIVE: 'Ativo', PAID: 'Ativo',
+      PENDING: 'Pendente', PENDING_FIRST_PAYMENT: 'Ag. Pgto',
+      CANCELLED: 'Cancelado', CANCELED: 'Cancelado', PAUSED: 'Pausado',
+    };
+    return <span className={`badge ${map[s] ?? 'badge-info'}`}>{labels[s] ?? status}</span>;
   };
 
   return (
@@ -123,13 +119,15 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {recent.map((s) => (
-                  <tr key={s.id} onClick={() => window.location.href = `/admin/subscribers/${s.id}`}>
+                  <tr key={s.id}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {s.customer?.name ?? '—'}
+                      {s.customer_name || '—'}
                     </td>
-                    <td>{s.customer?.email ?? '—'}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{s.customer_email || '—'}</td>
                     <td>{statusBadge(s.status)}</td>
-                    <td>{new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                      {s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                    </td>
                     <td>
                       {s.telegram_username ? (
                         <a 
@@ -142,7 +140,7 @@ export default function DashboardPage() {
                           @{s.telegram_username}
                         </a>
                       ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>Não vinculado</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não vinculado</span>
                       )}
                     </td>
                     <td>
