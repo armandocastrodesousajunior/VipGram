@@ -120,7 +120,13 @@ export default function LandingClient({
                   <div className="preview-carousel-track">
                     {[...product.gallery_images, ...product.gallery_images].map((imgUrl, idx) => (
                       <div key={idx} className="preview-carousel-item">
-                        <img src={imgUrl} alt={`Prévia ${idx + 1}`} decoding="async" />
+                        <img
+                          src={imgUrl}
+                          alt={`Prévia ${idx + 1}`}
+                          decoding="async"
+                          draggable={false}
+                          onContextMenu={(e) => e.preventDefault()}
+                        />
                       </div>
                     ))}
                   </div>
@@ -562,8 +568,12 @@ export default function LandingClient({
           border-radius: 14px;
           margin-bottom: 16px;
           box-sizing: border-box;
-          mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
-          -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+          mask-image: linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%);
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
         }
 
         .preview-carousel-track {
@@ -571,10 +581,6 @@ export default function LandingClient({
           gap: 12px;
           width: max-content;
           animation: marqueeRight 24s linear infinite;
-        }
-
-        .preview-carousel-track:hover {
-          animation-play-state: paused;
         }
 
         @keyframes marqueeRight {
@@ -593,6 +599,10 @@ export default function LandingClient({
           overflow: hidden;
           border: 1px solid rgba(0, 0, 0, 0.08);
           background-color: #000000;
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
         }
 
         .theme-dark_vip .preview-carousel-item,
@@ -606,6 +616,11 @@ export default function LandingClient({
           width: 100%;
           height: 100%;
           object-fit: cover;
+          pointer-events: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
+          -webkit-user-drag: none;
         }
 
         /* Resoluções Configuráveis das Prévias (1:1) */
@@ -618,6 +633,10 @@ export default function LandingClient({
         .size-500x500 .preview-carousel-item { width: 400px; height: 400px; border-radius: 16px; }
 
         @media (max-width: 768px) {
+          .preview-carousel-wrapper {
+            mask-image: linear-gradient(to right, transparent 0%, black 0.5%, black 99.5%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, transparent 0%, black 0.5%, black 99.5%, transparent 100%);
+          }
           .size-30x30 .preview-carousel-item { width: 28px; height: 28px; }
           .size-50x50 .preview-carousel-item { width: 44px; height: 44px; }
           .size-100x100 .preview-carousel-item { width: 85px; height: 85px; }
