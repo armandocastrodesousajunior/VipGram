@@ -18,9 +18,12 @@ export async function POST(request: NextRequest) {
     const update = await request.json();
     const bot = getBot();
 
-    console.log('--- NOVO EVENTO DO TELEGRAM ---');
-    console.log(JSON.stringify(update, null, 2));
-    console.log('-------------------------------');
+    // Log apenas em desenvolvimento para debug
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('--- NOVO EVENTO DO TELEGRAM ---');
+      console.log(JSON.stringify(update, null, 2));
+      console.log('-------------------------------');
+    }
 
     // 1. Handle incoming /start message or /vincular in channels
     const msg = update.message || update.channel_post;

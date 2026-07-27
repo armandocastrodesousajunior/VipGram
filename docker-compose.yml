@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grupo-vip-checkout
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://vip:secretpassword@db:5432/grupo_vip_db
+      - APP_URL=http://localhost:3000
+      - TELEGRAM_BOT_TOKEN=seu_bot_token_aqui
+      - ADMIN_TOKEN=sua_senha_admin
+      - SYNCPAY_BASE_URL=https://api.syncpayments.com.br
+      - SYNCPAY_CLIENT_ID=seu_client_id
+      - SYNCPAY_CLIENT_SECRET=seu_client_secret
+      - JWT_SECRET=dev_jwt_secret_must_be_at_least_32_chars_long
+    volumes:
+      # Uploads persistem no host (não ficam dentro da imagem)
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    container_name: grupo-vip-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vip
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: grupo_vip_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

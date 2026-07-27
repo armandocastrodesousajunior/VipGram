@@ -58,3 +58,7 @@ Thumbs.db
 
 # ─── Vercel / Deploy ─────────────────────────────────────────────────────────
 .vercel
+
+# ─── Docker ───────────────────────────────────────────────────────────────────
+# version-history.json é gerado localmente pelo publish-image.ps1
+version-history.json

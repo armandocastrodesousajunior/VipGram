@@ -99,6 +99,6 @@ export async function POST(request: NextRequest) {
       );
     }
     const message = error instanceof Error ? error.message : 'Erro ao processar';
-    return NextResponse.json({ error: message, fullError: String(error) }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

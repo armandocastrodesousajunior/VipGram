@@ -1,0 +1,39 @@
+# ─── Dependências e Build ─────────────────────────────────────────────────────
+node_modules
+.next
+out
+build
+
+# ─── Git ──────────────────────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ─── Ambiente ─────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── TypeScript / Dev ─────────────────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ─── Uploads de usuários (montados via volume em produção) ────────────────────
+public/uploads
+
+# ─── Scripts e arquivos de dev / manutenção ───────────────────────────────────
+migrate-*.js
+check-webhook.js
+scripts/
+
+# ─── Docs e config de IDE ─────────────────────────────────────────────────────
+README.md
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

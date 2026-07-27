@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { timingSafeEqual } from 'crypto';
 
 const COOKIE_NAME = 'admin_session';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN!;
@@ -27,7 +28,10 @@ export async function verifySessionToken(token: string): Promise<boolean> {
 }
 
 export function validateAdminToken(token: string): boolean {
-  return token === ADMIN_TOKEN;
+  const a = Buffer.from(token ?? '');
+  const b = Buffer.from(ADMIN_TOKEN ?? '');
+  if (a.length === 0 || b.length === 0 || a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 export async function getAdminSession(): Promise<boolean> {

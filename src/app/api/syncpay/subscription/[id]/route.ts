@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSubscription } from '@/lib/syncpay';
 import { query } from '@/lib/db';
+import { getAdminSession } from '@/lib/auth';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const isAdmin = await getAdminSession();
+  if (!isAdmin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+
   const { id } = await params;
 
   try {

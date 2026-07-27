@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  db:
+    image: 'postgres:15-alpine'
+    container_name: grupo-vip-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vip
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: grupo_vip_db
+    volumes:
+      - 'postgres_data:/var/lib/postgresql/data'
+
+  app:
+    image: 'armandocastro/grupo-vip-checkout:latest'
+    container_name: grupo-vip-checkout
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      - SERVICE_URL_VIP_3000
+      - 'DATABASE_URL=postgresql://vip:secretpassword@db:5432/grupo_vip_db'
+      - APP_URL=$SERVICE_URL_VIP
+      - TELEGRAM_BOT_TOKEN=seu_bot_token
+      - ADMIN_TOKEN=sua_senha_admin
+      - SYNCPAY_BASE_URL=https://api.syncpayments.com.br
+      - SYNCPAY_CLIENT_ID=seu_client_id
+      - SYNCPAY_CLIENT_SECRET=seu_client_secret
+      - JWT_SECRET=dev_jwt_secret_must_be_at_least_32_chars_long
+    volumes:
+      - './public/uploads:/app/public/uploads'
+
+volumes:
+  postgres_data: null
