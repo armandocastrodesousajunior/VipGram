@@ -86,7 +86,7 @@ export default function LandingClient({
         {/* Banner Horizontal do Produto no Topo da Tela */}
         {product.show_banner !== false && product.banner_url && (
           <div className="top-banner-wrapper">
-            <img src={product.banner_url} alt={product.name} className="top-banner-img" />
+            <img src={product.banner_url} alt={product.name} className="top-banner-img" decoding="async" fetchPriority="high" />
           </div>
         )}
 
@@ -98,7 +98,7 @@ export default function LandingClient({
             <div className="creator-header">
               <div className="creator-avatar">
                 {product.image_url ? (
-                  <img src={product.image_url} alt={creatorHandle} />
+                  <img src={product.image_url} alt={creatorHandle} decoding="async" fetchPriority="high" />
                 ) : (
                   <span>{initials}</span>
                 )}
@@ -120,7 +120,7 @@ export default function LandingClient({
                   <div className="preview-carousel-track">
                     {[...product.gallery_images, ...product.gallery_images].map((imgUrl, idx) => (
                       <div key={idx} className="preview-carousel-item">
-                        <img src={imgUrl} alt={`Prévia ${idx + 1}`} />
+                        <img src={imgUrl} alt={`Prévia ${idx + 1}`} decoding="async" />
                       </div>
                     ))}
                   </div>

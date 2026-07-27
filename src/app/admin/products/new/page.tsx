@@ -47,6 +47,9 @@ export default function NewProductPage() {
   // Upload States
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [externalAvatar, setExternalAvatar] = useState('');
+  const [externalBanner, setExternalBanner] = useState('');
+  const [externalGallery, setExternalGallery] = useState('');
 
   // Form State
   const [form, setForm] = useState({
@@ -316,33 +319,84 @@ export default function NewProductPage() {
                   </div>
                 </div>
               ) : (
-                <div className="upload-dropzone">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    id="avatar-upload"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) handleFileUpload(e.target.files[0], 'image_url');
-                    }}
-                  />
-                  <label htmlFor="avatar-upload" className="btn-upload-trigger">
-                    {uploadingAvatar ? (
-                      <span className="flex-center gap-2">
-                        <div className="spinner-mono" />
-                        <span>Enviando foto...</span>
-                      </span>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="17 8 12 3 7 8"/>
-                          <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        <span>Upload da Foto (Avatar)</span>
-                      </>
-                    )}
-                  </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="upload-dropzone">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="avatar-upload"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleFileUpload(e.target.files[0], 'image_url');
+                      }}
+                    />
+                    <label htmlFor="avatar-upload" className="btn-upload-trigger">
+                      {uploadingAvatar ? (
+                        <span className="flex-center gap-2">
+                          <div className="spinner-mono" />
+                          <span>Enviando foto...</span>
+                        </span>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                          <span>Upload da Foto (PC)</span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="url"
+                      placeholder="Ou cole um link externo (https://...)"
+                      value={externalAvatar}
+                      onChange={(e) => setExternalAvatar(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (externalAvatar.trim()) {
+                            setField('image_url', externalAvatar.trim());
+                            setExternalAvatar('');
+                          }
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        background: 'rgba(0,0,0,0.2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)',
+                        fontSize: '12px',
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (externalAvatar.trim()) {
+                          setField('image_url', externalAvatar.trim());
+                          setExternalAvatar('');
+                        }
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        background: 'rgba(255,255,255,0.08)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Usar Link
+                    </button>
+                  </div>
                 </div>
               )}
               <span className="field-help">Recomendado: <strong>300 x 300 px</strong> (formato quadrado — corte circular)</span>
@@ -367,33 +421,84 @@ export default function NewProductPage() {
                 </div>
               </div>
             ) : (
-              <div className="upload-dropzone">
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="banner-upload"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) handleFileUpload(e.target.files[0], 'banner_url');
-                  }}
-                />
-                <label htmlFor="banner-upload" className="btn-upload-trigger">
-                  {uploadingBanner ? (
-                    <span className="flex-center gap-2">
-                      <div className="spinner-mono" />
-                      <span>Enviando banner...</span>
-                    </span>
-                  ) : (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                      </svg>
-                      <span>Upload do Banner do Produto</span>
-                    </>
-                  )}
-                </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="upload-dropzone">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="banner-upload"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleFileUpload(e.target.files[0], 'banner_url');
+                    }}
+                  />
+                  <label htmlFor="banner-upload" className="btn-upload-trigger">
+                    {uploadingBanner ? (
+                      <span className="flex-center gap-2">
+                        <div className="spinner-mono" />
+                        <span>Enviando banner...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="17 8 12 3 7 8"/>
+                          <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>Upload do Banner (PC)</span>
+                      </>
+                    )}
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    type="url"
+                    placeholder="Ou cole um link externo (https://...)"
+                    value={externalBanner}
+                    onChange={(e) => setExternalBanner(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (externalBanner.trim()) {
+                          setField('banner_url', externalBanner.trim());
+                          setExternalBanner('');
+                        }
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (externalBanner.trim()) {
+                        setField('banner_url', externalBanner.trim());
+                        setExternalBanner('');
+                      }
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Usar Link
+                  </button>
+                </div>
               </div>
             )}
             <span className="field-help">Recomendado: <strong>1200 x 600 px</strong> (proporção 2:1 no topo do card)</span>
@@ -617,36 +722,87 @@ export default function NewProductPage() {
 
                 <div className="field-group">
                   <label className="field-label">Adicionar Fotos da Galeria</label>
-                  <div className="upload-dropzone">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      id="gallery-upload"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          handleGalleryUpload(e.target.files);
-                        }
-                      }}
-                    />
-                    <label htmlFor="gallery-upload" className="btn-upload-trigger">
-                      {uploadingGallery ? (
-                        <span className="flex-center gap-2">
-                          <div className="spinner-mono" />
-                          <span>Enviando prévias...</span>
-                        </span>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                          </svg>
-                          <span>+ Upload de Fotos</span>
-                        </>
-                      )}
-                    </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="upload-dropzone">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        id="gallery-upload"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            handleGalleryUpload(e.target.files);
+                          }
+                        }}
+                      />
+                      <label htmlFor="gallery-upload" className="btn-upload-trigger">
+                        {uploadingGallery ? (
+                          <span className="flex-center gap-2">
+                            <div className="spinner-mono" />
+                            <span>Enviando prévias...</span>
+                          </span>
+                        ) : (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                              <polyline points="17 8 12 3 7 8"/>
+                              <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span>+ Upload do PC</span>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="url"
+                        placeholder="Ou cole um link externo (https://...)"
+                        value={externalGallery}
+                        onChange={(e) => setExternalGallery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (externalGallery.trim()) {
+                              setField('gallery_images', [...form.gallery_images, externalGallery.trim()]);
+                              setExternalGallery('');
+                            }
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 10px',
+                          background: 'rgba(0,0,0,0.2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '12px',
+                          outline: 'none',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (externalGallery.trim()) {
+                            setField('gallery_images', [...form.gallery_images, externalGallery.trim()]);
+                            setExternalGallery('');
+                          }
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          background: 'rgba(255,255,255,0.08)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        + Adicionar Link
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

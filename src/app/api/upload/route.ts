@@ -4,6 +4,7 @@ import { cleanupUnusedUploads } from '@/lib/cleanup-uploads';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
   const isAdmin = await getAdminSession();
@@ -32,10 +33,22 @@ export async function POST(request: NextRequest) {
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    let buffer = Buffer.from(bytes);
+    let ext = path.extname(file.name) || '.jpg';
 
-    // Obtém extensão original
-    const ext = path.extname(file.name) || '.jpg';
+    // Se não for GIF animado, otimizamos e comprimimos para WebP ultraleve usando sharp
+    if (file.type !== 'image/gif' && ext.toLowerCase() !== '.gif') {
+      try {
+        buffer = await sharp(buffer)
+          .resize({ width: 1920, withoutEnlargement: true })
+          .webp({ quality: 80, effort: 4 })
+          .toBuffer();
+        ext = '.webp';
+      } catch (sharpErr) {
+        console.warn('[Upload] Falha ao otimizar com sharp, salvando arquivo original:', sharpErr);
+      }
+    }
+
     const filename = `${Date.now()}-${uuidv4().slice(0, 8)}${ext.toLowerCase()}`;
     const filePath = path.join(uploadsDir, filename);
 
