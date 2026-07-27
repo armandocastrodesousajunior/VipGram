@@ -8,7 +8,12 @@ export async function register() {
         const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook`;
         
         // Use standard global fetch available in Node.js
-        const res = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook?url=${webhookUrl}`);
+        const allowedUpdates = ['message', 'channel_post', 'chat_member', 'my_chat_member', 'callback_query'];
+        const res = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: webhookUrl, allowed_updates: allowedUpdates }),
+        });
         const data = await res.json();
         
         if (data.ok) {

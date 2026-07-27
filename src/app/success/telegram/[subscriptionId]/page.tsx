@@ -45,6 +45,7 @@ export default function SucessoTelegramPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retrying, setRetrying] = useState(false);
+  const [themeColor, setThemeColor] = useState('clean_dark');
   const calledRef = useRef(false);
 
   useEffect(() => {
@@ -57,13 +58,22 @@ export default function SucessoTelegramPage({
     if (!subscriptionId || calledRef.current) return;
     calledRef.current = true;
 
-    fetchBotInfo();
+    fetchData();
   }, [subscriptionId]);
 
-  async function fetchBotInfo() {
+  async function fetchData() {
     setLoading(true);
     setError('');
     try {
+      // Fetch payment details (which includes theme_color)
+      const paymentRes = await fetch(`/api/payment/${subscriptionId}`);
+      if (paymentRes.ok) {
+        const paymentData = await paymentRes.json();
+        if (paymentData.theme_color) {
+          setThemeColor(paymentData.theme_color);
+        }
+      }
+
       const res = await fetch('/api/telegram/bot-info');
       const data = await res.json();
       if (!res.ok) {
@@ -83,13 +93,13 @@ export default function SucessoTelegramPage({
   async function retry() {
     setRetrying(true);
     calledRef.current = false;
-    await fetchBotInfo();
+    await fetchData();
     setRetrying(false);
   }
 
   if (loading) {
     return (
-      <div className="sucesso-page">
+      <div className={`theme-${themeColor} sucesso-page`}>
         <div className="sucesso-card">
           <div className="spinner spinner-lg" style={{ margin: '0 auto' }} />
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
@@ -102,7 +112,7 @@ export default function SucessoTelegramPage({
   }
 
   return (
-    <div className="sucesso-page">
+    <div className={`theme-${themeColor} sucesso-page`}>
       <Confetti />
 
       <div className="sucesso-card">
@@ -131,7 +141,7 @@ export default function SucessoTelegramPage({
                 href={inviteLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-primary btn-xl btn-full sucesso-cta"
+                className="sucesso-cta"
               >
                 <span>📱</span>
                 <span>Falar com o Bot no Telegram</span>
@@ -176,15 +186,16 @@ export default function SucessoTelegramPage({
               <span>{error}</span>
             </div>
             <button
-              className="btn btn-primary btn-full"
+              className="sucesso-cta"
               onClick={retry}
               disabled={retrying}
+              style={{ width: '100%' }}
             >
               {retrying ? <><div className="spinner" /> Tentando...</> : '🔄 Tentar novamente'}
             </button>
             <p className="sucesso-footer">
               Se o problema persistir, entre em contato com o suporte informando o ID:{' '}
-              <code style={{ color: 'var(--accent)' }}>{subscriptionId}</code>
+              <code style={{ color: 'var(--color-primary)' }}>{subscriptionId}</code>
             </p>
           </>
         )}
@@ -200,17 +211,18 @@ function SucessoStyles() {
     <style>{`
       .sucesso-page {
         min-height: 100vh;
-        background: var(--gradient-hero);
+        background: var(--bg-main);
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 20px;
         position: relative;
+        color: var(--text-title);
       }
 
       .sucesso-card {
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
+        background: var(--card-bg);
+        border: 1px solid var(--input-border);
         border-radius: var(--radius-xl);
         padding: 48px 40px;
         width: 100%;
@@ -220,7 +232,7 @@ function SucessoStyles() {
         display: flex;
         flex-direction: column;
         gap: 20px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         animation: slideUp 0.5s ease;
       }
 
@@ -234,23 +246,20 @@ function SucessoStyles() {
         font-size: 32px;
         font-weight: 900;
         text-align: center;
-        background: var(--gradient-accent);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: var(--text-title);
       }
 
       .sucesso-sub {
         text-align: center;
         font-size: 15px;
-        color: var(--text-secondary);
+        color: var(--text-sub);
         margin-top: -8px;
         line-height: 1.6;
       }
 
       .sucesso-link-card {
-        background: var(--color-bg-2);
-        border: 1px solid var(--color-border);
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
         border-radius: var(--radius-lg);
         padding: 20px;
         display: flex;
@@ -264,21 +273,40 @@ function SucessoStyles() {
         gap: 8px;
         font-size: 13px;
         font-weight: 700;
-        color: var(--accent);
+        color: var(--text-title);
         text-transform: uppercase;
         letter-spacing: 0.06em;
       }
 
       .sucesso-link-warning {
         font-size: 12px;
-        color: var(--color-warning);
-        background: var(--color-warning-bg);
+        color: #b45309;
+        background: rgba(245,158,11,0.15);
         padding: 8px 12px;
         border-radius: var(--radius-sm);
       }
 
       .sucesso-cta {
         animation: pulse-glow 2s ease-in-out infinite;
+        background: var(--cta-bg);
+        color: var(--cta-text);
+        border: none;
+        padding: 16px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: 0.2s ease;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      
+      .sucesso-cta:hover {
+        background: var(--cta-hover);
+        transform: translateY(-2px);
       }
 
       .sucesso-link-text {
@@ -286,7 +314,7 @@ function SucessoStyles() {
         align-items: center;
         gap: 8px;
         font-size: 11px;
-        color: var(--text-muted);
+        color: var(--text-sub);
         overflow: hidden;
       }
 
@@ -294,12 +322,12 @@ function SucessoStyles() {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: var(--text-secondary);
+        color: var(--text-title);
       }
 
       .sucesso-instructions {
-        background: var(--color-bg-2);
-        border: 1px solid var(--color-border);
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
         border-radius: var(--radius);
         padding: 16px;
         display: flex;
@@ -312,14 +340,14 @@ function SucessoStyles() {
         align-items: center;
         gap: 12px;
         font-size: 14px;
-        color: var(--text-secondary);
+        color: var(--text-sub);
       }
 
       .sucesso-step-num {
         width: 24px; height: 24px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.05);
-        color: var(--accent);
+        background: var(--badges-bg);
+        color: var(--badges-text);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -330,7 +358,7 @@ function SucessoStyles() {
 
       .sucesso-footer {
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-sub);
         text-align: center;
         line-height: 1.5;
       }

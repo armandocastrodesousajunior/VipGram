@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         );
 
         // Envia mensagem de sucesso com o botão inline
-        await bot.sendMessage(chatId, '🎉 *Assinatura confirmada!*\\n\\nClique no botão abaixo para acessar seu Grupo VIP. Este link é único e exclusivo para você.', {
+        await bot.sendMessage(chatId, '🎉 *Assinatura confirmada!*\n\nClique no botão abaixo para acessar seu Grupo VIP. Este link é único e exclusivo para você.', {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
@@ -138,24 +138,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Handle chat_member updates (when someone joins/leaves the group)
-    if (update.chat_member) {
-      const newChatMember = update.chat_member.new_chat_member;
-      const userId = newChatMember.user.id;
-      const status = newChatMember.status; // 'member', 'left', 'kicked', 'restricted', 'creator', 'administrator'
+    // 2. Handle chat_member / my_chat_member updates (when someone joins/leaves)
+    const memberUpdate = update.chat_member || update.my_chat_member;
+    if (memberUpdate) {
+      const newChatMember = memberUpdate.new_chat_member;
+      const memberId = newChatMember.user.id;
+      const status = newChatMember.status;
 
       if (['member', 'administrator', 'creator'].includes(status)) {
-        // Usuário entrou no grupo
         await query(
           'UPDATE subscribers_meta SET in_group = TRUE WHERE telegram_user_id = $1',
-          [userId.toString()]
+          [memberId.toString()]
         );
-      } else if (['left', 'kicked'].includes(status)) {
-        // Usuário saiu do grupo
+        console.log(`[Bot] Usuário ${memberId} entrou no grupo. Status: ${status}`);
+      } else if (['left', 'kicked', 'restricted'].includes(status)) {
         await query(
           'UPDATE subscribers_meta SET in_group = FALSE WHERE telegram_user_id = $1',
-          [userId.toString()]
+          [memberId.toString()]
         );
+        console.log(`[Bot] Usuário ${memberId} saiu/foi removido. Status: ${status}`);
       }
     }
 

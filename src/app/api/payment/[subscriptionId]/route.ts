@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getSubscription } from '@/lib/syncpay';
 
 export async function GET(
   _req: NextRequest,
@@ -26,7 +27,27 @@ export async function GET(
       return NextResponse.json({ error: 'Pagamento não encontrado' }, { status: 404 });
     }
 
-    return NextResponse.json(rows[0]);
+    const localData = rows[0];
+
+    // Poll the SyncPay API to get the latest status
+    try {
+      const syncpayData = await getSubscription(subscriptionId);
+      const newStatus = syncpayData.status || localData.status;
+
+      if (newStatus !== localData.status) {
+        // Update the local database with the new status
+        await query(
+          'UPDATE subscribers_meta SET payment_status = $1 WHERE syncpay_subscription_id = $2',
+          [newStatus, subscriptionId]
+        );
+        localData.status = newStatus;
+      }
+    } catch (apiError) {
+      console.error('[Payment Sync Error]:', apiError);
+      // Fallback to local data if the API call fails
+    }
+
+    return NextResponse.json(localData);
   } catch (error) {
     console.error('[Payment GET Error]:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });

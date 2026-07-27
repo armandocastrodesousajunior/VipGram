@@ -36,7 +36,7 @@ export default function PaymentClient({ subscriptionId }: { subscriptionId: stri
 
       // Redireciona se já pago
       if (['ACTIVE', 'PAID', 'active', 'paid'].includes(json.status)) {
-        router.push(`/sucesso/telegram/${subscriptionId}`);
+        router.push(`/success/telegram/${subscriptionId}`);
       }
     } catch {
       setError('Erro ao carregar dados do pagamento.');
