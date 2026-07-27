@@ -72,23 +72,8 @@ const productSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
-export async function ensureColumns() {
-  try {
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS creator_name TEXT;`);
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT 'clean_light';`);
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS show_creator BOOLEAN DEFAULT TRUE;`);
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS show_banner BOOLEAN DEFAULT TRUE;`);
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS gallery_images JSONB DEFAULT '[]'::jsonb;`);
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS preview_size TEXT DEFAULT '300x300';`);
-    await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'before_plan';`);
-  } catch (err) {
-    console.error('ensureColumns error:', err);
-  }
-}
-
 // GET /api/products — lista pública (apenas ativos)
 export async function GET(request: NextRequest) {
-  await ensureColumns();
 
   const { searchParams } = new URL(request.url);
   const adminMode = searchParams.get('admin') === 'true';
@@ -126,8 +111,6 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json({ error: 'Slug já em uso' }, { status: 409 });
     }
-
-    await ensureColumns();
 
     const id = uuidv4();
     const [product] = await query<Product>(

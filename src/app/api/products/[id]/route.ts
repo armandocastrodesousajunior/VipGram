@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { getAdminSession } from '@/lib/auth';
 import { query, queryOne } from '@/lib/db';
 import { cleanupUnusedUploads } from '@/lib/cleanup-uploads';
-import { ensureColumns } from '../route';
 
 const updateSchema = z.object({
   slug: z.string().min(2).max(60).regex(/^[a-z0-9-]+$/).optional(),
@@ -37,7 +36,6 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await ensureColumns();
   const { id } = await params;
   const product = await queryOne('SELECT * FROM products WHERE id = $1', [id]);
   if (!product) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
@@ -49,7 +47,6 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await ensureColumns();
   const isAdmin = await getAdminSession();
   if (!isAdmin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 

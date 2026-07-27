@@ -1,5 +1,13 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    try {
+      const { ensureDbInitialized } = await import('./lib/db');
+      await ensureDbInitialized();
+      console.log('✅ [Database] Banco de dados inicializado no boot do servidor Node.js.');
+    } catch (err) {
+      console.error('❌ [Database] Erro na inicialização no boot:', err);
+    }
+
     const appUrl = process.env.APP_URL;
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 

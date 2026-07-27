@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS products (
   description       TEXT,
   image_url         TEXT,
   banner_url        TEXT,
+  creator_name      TEXT,
+  theme_color       TEXT DEFAULT 'clean_light',
+  gallery_images    JSONB DEFAULT '[]'::jsonb,
+  preview_size      TEXT DEFAULT '300x300',
+  carousel_position TEXT DEFAULT 'before_plan',
   type              TEXT NOT NULL DEFAULT 'telegram_group'
                     CHECK (type IN ('telegram_group', 'external_community')),
   billing_type      TEXT NOT NULL DEFAULT 'subscription'
@@ -31,6 +36,8 @@ CREATE TABLE IF NOT EXISTS products (
   show_price        BOOLEAN DEFAULT TRUE,
   show_description  BOOLEAN DEFAULT TRUE,
   show_period       BOOLEAN DEFAULT TRUE,
+  show_creator      BOOLEAN DEFAULT TRUE,
+  show_banner       BOOLEAN DEFAULT TRUE,
   show_features     BOOLEAN DEFAULT TRUE,
   custom_features   JSONB DEFAULT '[]',
   cta_text          TEXT DEFAULT 'Quero Acesso VIP',
@@ -75,6 +82,13 @@ CREATE INDEX IF NOT EXISTS idx_subscribers_product ON subscribers_meta(product_i
 CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers_meta(customer_email);
 
 -- Migrations (seguras para rodar em banco já existente)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS creator_name TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT 'clean_light';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS show_creator BOOLEAN DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS show_banner BOOLEAN DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS gallery_images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS preview_size TEXT DEFAULT '300x300';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'before_plan';
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_code TEXT;
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_expires_at TIMESTAMPTZ;
 

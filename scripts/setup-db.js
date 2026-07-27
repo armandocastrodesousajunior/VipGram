@@ -18,16 +18,24 @@ CREATE TABLE IF NOT EXISTS products (
   description       TEXT,
   image_url         TEXT,
   banner_url        TEXT,
+  creator_name      TEXT,
+  theme_color       TEXT DEFAULT 'clean_light',
+  gallery_images    JSONB DEFAULT '[]'::jsonb,
+  preview_size      TEXT DEFAULT '300x300',
+  carousel_position TEXT DEFAULT 'before_plan',
   type              TEXT NOT NULL DEFAULT 'telegram_group',
   billing_type      TEXT NOT NULL DEFAULT 'subscription',
   syncpay_plan_id   TEXT NOT NULL DEFAULT '',
   telegram_chat_id  TEXT,
   telegram_chat_name TEXT,
   telegram_invite_link TEXT,
+  telegram_sync_token TEXT,
   bot_setup_done    BOOLEAN DEFAULT FALSE,
   show_price        BOOLEAN DEFAULT TRUE,
   show_description  BOOLEAN DEFAULT TRUE,
   show_period       BOOLEAN DEFAULT TRUE,
+  show_creator      BOOLEAN DEFAULT TRUE,
+  show_banner       BOOLEAN DEFAULT TRUE,
   show_features     BOOLEAN DEFAULT TRUE,
   custom_features   JSONB DEFAULT '[]',
   cta_text          TEXT DEFAULT 'Quero Acesso VIP',
@@ -48,9 +56,12 @@ CREATE TABLE IF NOT EXISTS subscribers_meta (
   telegram_user_id        BIGINT,
   bot_delivered           BOOLEAN DEFAULT FALSE,
   bot_delivered_at        TIMESTAMPTZ,
+  in_group                BOOLEAN DEFAULT FALSE,
   invite_link             TEXT,
   delivery_error          TEXT,
   payment_status          TEXT,
+  pix_code                TEXT,
+  pix_expires_at          TIMESTAMPTZ,
   created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -59,6 +70,16 @@ CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
 CREATE INDEX IF NOT EXISTS idx_subscribers_subscription ON subscribers_meta(syncpay_subscription_id);
 CREATE INDEX IF NOT EXISTS idx_subscribers_product ON subscribers_meta(product_id);
 CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers_meta(customer_email);
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS creator_name TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT 'clean_light';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS show_creator BOOLEAN DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS show_banner BOOLEAN DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS gallery_images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS preview_size TEXT DEFAULT '300x300';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'before_plan';
+ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_code TEXT;
+ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_expires_at TIMESTAMPTZ;
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
