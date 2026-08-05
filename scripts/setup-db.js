@@ -71,6 +71,40 @@ CREATE INDEX IF NOT EXISTS idx_subscribers_subscription ON subscribers_meta(sync
 CREATE INDEX IF NOT EXISTS idx_subscribers_product ON subscribers_meta(product_id);
 CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers_meta(customer_email);
 
+CREATE TABLE IF NOT EXISTS chatbots (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  product_id        TEXT REFERENCES products(id) ON DELETE SET NULL,
+  name              TEXT NOT NULL,
+  type              TEXT NOT NULL DEFAULT 'standard' CHECK (type IN ('standard', 'business')),
+  bot_token         TEXT,
+  business_connection_id TEXT,
+  is_active         BOOLEAN DEFAULT TRUE,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS chatbot_flows (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  chatbot_id  TEXT NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  steps       JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(chatbot_id)
+);
+
+CREATE TABLE IF NOT EXISTS chatbot_sessions (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  chatbot_id        TEXT NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  telegram_user_id  TEXT NOT NULL,
+  chat_id           TEXT NOT NULL,
+  current_step      INTEGER DEFAULT 0,
+  is_paused         BOOLEAN DEFAULT FALSE,
+  state_data        JSONB DEFAULT '{}'::jsonb,
+  last_interaction  TIMESTAMPTZ DEFAULT NOW(),
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(chatbot_id, telegram_user_id)
+);
+
 ALTER TABLE products ADD COLUMN IF NOT EXISTS creator_name TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT 'clean_light';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS show_creator BOOLEAN DEFAULT TRUE;
@@ -80,6 +114,8 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS preview_size TEXT DEFAULT '300x300
 ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'before_plan';
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_code TEXT;
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_expires_at TIMESTAMPTZ;
+ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+ALTER TABLE chatbots ALTER COLUMN product_id DROP NOT NULL;
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

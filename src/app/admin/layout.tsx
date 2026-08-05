@@ -45,13 +45,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </svg>
       ),
     },
+    {
+      href: '/admin/chatbots',
+      label: 'Chatbots',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+      ),
+    },
   ];
 
   return (
     <div className="admin-shell">
-      {/* Sidebar Lateral Monocromática */}
       <aside className="admin-sidebar">
-        {/* Logo / Brand Header */}
         <div className="sidebar-brand">
           <div className="brand-logo">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -108,23 +115,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Área Principal */}
       <div className="admin-wrapper">
-        {/* Top Header */}
-        <header className="admin-topbar">
-          <div className="topbar-left">
-            <span className="topbar-breadcrumb">Admin</span>
-            <span className="topbar-slash">/</span>
-            <span className="topbar-current">
-              {pathname.includes('products/new') ? 'Novo Produto' : pathname.includes('products/') ? 'Editar Produto' : pathname.includes('products') ? 'Produtos' : 'Dashboard'}
-            </span>
-          </div>
-          <div className="topbar-right">
-            <div className="system-status">
-              <span className="status-dot" />
-              <span>Sistema Ativo</span>
-            </div>
-          </div>
-        </header>
-
         {/* Conteúdo da Página */}
         <main className="admin-content">
           {children}
@@ -342,6 +332,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           flex: 1;
           padding: 32px;
           overflow-y: auto;
+        }
+
+        .hover-card:hover {
+          border-color: #ffffff !important;
         }
 
         @media (max-width: 768px) {

@@ -21,9 +21,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Valida tipo do arquivo
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+      'audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/wav', 'audio/aac',
+      'video/mp4', 'video/webm', 'video/quicktime'
+    ];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Formato de imagem inválido. Use JPG, PNG, WEBP ou GIF' }, { status: 400 });
+      return NextResponse.json({ error: 'Formato inválido. Envie imagens, áudios (MP3, OGG) ou vídeos (MP4)' }, { status: 400 });
     }
 
     // Garante que o diretório public/uploads existe
@@ -34,10 +38,12 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     let buffer = Buffer.from(bytes);
-    let ext = path.extname(file.name) || '.jpg';
+    let ext = path.extname(file.name) || (file.type.startsWith('audio/') ? '.mp3' : file.type.startsWith('video/') ? '.mp4' : '.jpg');
 
-    // Se não for GIF animado, otimizamos e comprimimos para WebP ultraleve usando sharp
-    if (file.type !== 'image/gif' && ext.toLowerCase() !== '.gif') {
+    const isImage = file.type.startsWith('image/');
+
+    // Se for imagem e não for GIF animado, otimizamos e comprimimos para WebP ultraleve usando sharp
+    if (isImage && file.type !== 'image/gif' && ext.toLowerCase() !== '.gif') {
       try {
         buffer = await sharp(buffer)
           .resize({ width: 1920, withoutEnlargement: true })

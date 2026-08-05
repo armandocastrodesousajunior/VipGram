@@ -74,6 +74,42 @@ CREATE TABLE IF NOT EXISTS subscribers_meta (
   created_at                 TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela de Chatbots (Bots Padrões e Business)
+CREATE TABLE IF NOT EXISTS chatbots (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  product_id        TEXT REFERENCES products(id) ON DELETE SET NULL,
+  name              TEXT NOT NULL,
+  type              TEXT NOT NULL DEFAULT 'standard' CHECK (type IN ('standard', 'business')),
+  bot_token         TEXT,
+  business_connection_id TEXT,
+  is_active         BOOLEAN DEFAULT TRUE,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela de Fluxos (Automação Sequencial)
+CREATE TABLE IF NOT EXISTS chatbot_flows (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  chatbot_id        TEXT NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  steps             JSONB DEFAULT '[]'::jsonb,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela de Sessões (Rastreamento de estado da conversa)
+CREATE TABLE IF NOT EXISTS chatbot_sessions (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  chatbot_id        TEXT NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  telegram_user_id  TEXT NOT NULL,
+  chat_id           TEXT NOT NULL,
+  current_step      INTEGER DEFAULT 0,
+  is_paused         BOOLEAN DEFAULT FALSE,
+  state_data        JSONB DEFAULT '{}'::jsonb,
+  last_interaction  TIMESTAMPTZ DEFAULT NOW(),
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(chatbot_id, telegram_user_id)
+);
+
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
@@ -91,6 +127,8 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS preview_size TEXT DEFAULT '300x300
 ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'before_plan';
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_code TEXT;
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_expires_at TIMESTAMPTZ;
+ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+ALTER TABLE chatbots ALTER COLUMN product_id DROP NOT NULL;
 
 -- Trigger para updated_at automático
 CREATE OR REPLACE FUNCTION update_updated_at_column()
