@@ -21,13 +21,24 @@ export default async function ChatbotPage({ params }: { params: Promise<{ id: st
     [id]
   );
 
-  // Enriquecer as sessões com o nome do estágio
+  // Enriquecer as sessões com o nome do estágio e status real
   const enrichedSessions = sessions.map((session: any) => {
     const stepObj = steps[session.current_step];
-    const stageName = stepObj?.stageName || `Passo ${session.current_step + 1}`;
+    
+    // Nomenclatura atualizada
+    const stepNumber = session.current_step + 1;
+    const stageName = `Passo ${stepNumber}`;
+    const progressionTag = stepObj?.stageName || null;
+    
+    // Status normalizado (migrando do is_paused pro novo status)
+    let status = session.status || 'active';
+    if (session.is_paused && status !== 'closed') status = 'paused';
+
     return {
       ...session,
-      stageName
+      stageName,
+      progressionTag,
+      status
     };
   });
 
@@ -42,6 +53,7 @@ export default async function ChatbotPage({ params }: { params: Promise<{ id: st
       
       <ChatbotTabsClient 
         chatbotId={chatbot.id}
+        chatbot={chatbot}
         initialSessions={enrichedSessions}
         initialSteps={steps}
         products={products}

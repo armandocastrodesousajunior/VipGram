@@ -10,6 +10,7 @@
     "db:setup": "node scripts/setup-db.js"
   },
   "dependencies": {
+    "framer-motion": "^13.1.0",
     "jose": "^5.10.0",
     "next": "16.2.11",
     "node-telegram-bot-api": "^0.66.0",

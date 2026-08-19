@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
 
     // Registrar webhook na API do Telegram se for standard (tem token)
     if (type === 'standard' && bot_token) {
-      const webhookUrl = `${request.headers.get('origin') || 'https://vip.callme.sbs'}/api/telegram/webhook/${chatbot.id}`;
+      const appUrl = process.env.APP_URL || 'https://vip.callme.sbs';
+      const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook/${chatbot.id}`;
       const tgRes = await fetch(`https://api.telegram.org/bot${bot_token}/setWebhook?url=${webhookUrl}`);
       const tgData = await tgRes.json();
       if (!tgData.ok) {

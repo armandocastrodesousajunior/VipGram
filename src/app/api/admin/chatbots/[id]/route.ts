@@ -27,3 +27,50 @@ export async function DELETE(
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  try {
+    const { name, type, bot_token, business_connection_id, simulation_config } = await req.json();
+
+    if (!name || !type) {
+      return NextResponse.json({ error: 'Preencha os campos obrigatórios' }, { status: 400 });
+    }
+
+    if (type === 'standard' && !bot_token) {
+      return NextResponse.json({ error: 'Token do bot é obrigatório para tipo standard' }, { status: 400 });
+    }
+
+    const simConfigStr = simulation_config ? JSON.stringify(simulation_config) : '{"textMode":"normal","textMsPerChar":180,"videoMode":"normal","audioMode":"normal"}';
+
+    const result = await query(
+      `UPDATE chatbots 
+       SET name = $1, type = $2, bot_token = $3, business_connection_id = $4, simulation_config = $5::jsonb, updated_at = NOW()
+       WHERE id = $6 RETURNING *`,
+      [name, type, bot_token || null, business_connection_id || null, simConfigStr, id]
+    );
+
+    if (!result[0]) {
+      return NextResponse.json({ error: 'Chatbot não encontrado' }, { status: 404 });
+    }
+
+    // Registrar webhook na API do Telegram se for standard
+    if (type === 'standard' && bot_token) {
+      const appUrl = process.env.APP_URL || 'https://vip.callme.sbs';
+      const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook/${id}`;
+      const tgRes = await fetch(`https://api.telegram.org/bot${bot_token}/setWebhook?url=${webhookUrl}`);
+      const tgData = await tgRes.json();
+      if (!tgData.ok) {
+        console.error('Erro ao registrar webhook no Telegram:', tgData);
+      }
+    }
+
+    return NextResponse.json(result[0]);
+  } catch (error) {
+    console.error('[Chatbots PUT error]:', error);
+    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
+  }
+}

@@ -3,7 +3,29 @@ import TelegramBot from 'node-telegram-bot-api';
 import { query, queryOne } from '@/lib/db';
 import { generatePixForBot } from '@/lib/syncpay';
 
+// Helper de sleep para delay nas ações do bot
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const simulateActionLoop = async (
+  bot: TelegramBot,
+  chatId: number | string,
+  actionMsg: TelegramBot.ChatAction,
+  durationMs: number,
+  businessConnectionId?: string
+) => {
+  const interval = 4500; // API requires renew every ~5s
+  let elapsed = 0;
+  while (elapsed < durationMs) {
+    try {
+      await bot.sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId });
+    } catch (e) {
+      // ignore
+    }
+    const toWait = Math.min(interval, durationMs - elapsed);
+    await sleep(toWait);
+    elapsed += toWait;
+  }
+};
 
 export async function POST(
   request: NextRequest,
@@ -28,12 +50,15 @@ export async function POST(
       const telegramUserId = cb.from.id;
       
       const session = await queryOne<any>(
-        'SELECT is_paused FROM chatbot_sessions WHERE chatbot_id = $1 AND telegram_user_id = $2',
+        'SELECT is_paused, status FROM chatbot_sessions WHERE chatbot_id = $1 AND telegram_user_id = $2',
         [chatbotId, telegramUserId.toString()]
       );
 
-      if (session && session.is_paused) {
+      if (session && (session.is_paused || session.status === 'paused')) {
         return NextResponse.json({ ok: true, reason: 'session_paused' });
+      }
+      if (session && session.status === 'closed') {
+        return NextResponse.json({ ok: true, reason: 'session_closed_ignoring_callback' });
       }
       
       await fetch(`https://api.telegram.org/bot${chatbot.bot_token}/answerCallbackQuery`, {
@@ -54,12 +79,33 @@ export async function POST(
 
           const pixData = await generatePixForBot(product.syncpay_plan_id, telegramUserId, productId);
 
-          await bot.sendMessage(chatId, `✅ *PIX Gerado com sucesso!*\n\nCopie o código abaixo e pague no seu aplicativo do banco. Assim que pago, o link do grupo será liberado automaticamente aqui mesmo.\n\n\`${pixData.pix_code}\``, {
+          // Armazenar o código PIX na sessão temporariamente para o botão de copiar funcionar
+          if (session) {
+            await query("UPDATE chatbot_sessions SET state_data = jsonb_set(state_data, '{last_pix_code}', $1::jsonb) WHERE id = $2", [JSON.stringify(pixData.pix_code), session.id]);
+          }
+
+          await bot.sendMessage(chatId, `✅ *PIX Gerado com sucesso!*\n\nCopie o código abaixo clicando nele ou use os botões. Pague no seu aplicativo do banco para liberar o acesso:\n\n\`${pixData.pix_code}\``, {
             parse_mode: 'Markdown',
-            business_connection_id: cb.message?.business_connection_id
+            business_connection_id: cb.message?.business_connection_id,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📋 Copiar PIX', callback_data: `copy_pix` },
+                  { text: '🔄 Gerar outro', callback_data: `generate_pix:${productId}` }
+                ]
+              ]
+            }
           });
         } catch (e: any) {
-          await bot.sendMessage(chatId, '❌ Ocorreu um erro ao gerar o PIX. Tente novamente mais tarde.', { business_connection_id: cb.message?.business_connection_id });
+          console.error('[ERRO AO GERAR PIX NO BOT]:', e);
+          await bot.sendMessage(chatId, '❌ Ocorreu um erro ao gerar o PIX. O servidor de pagamento pode estar indisponível no momento.', { 
+            business_connection_id: cb.message?.business_connection_id,
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔄 Tentar Novamente', callback_data: `generate_pix:${productId}` }]
+              ]
+            }
+          });
         }
       } else if (action === 'send_link') {
         const productId = dataParts[1];
@@ -85,6 +131,13 @@ export async function POST(
               business_connection_id: cb.message?.business_connection_id 
             });
           }
+        }
+      } else if (action === 'copy_pix') {
+        if (session && session.state_data && session.state_data.last_pix_code) {
+          await bot.sendMessage(chatId, `\`${session.state_data.last_pix_code}\``, { 
+            parse_mode: 'Markdown',
+            business_connection_id: cb.message?.business_connection_id 
+          });
         }
       }
 
@@ -112,98 +165,169 @@ export async function POST(
       [chatbotId, telegramUserId.toString()]
     );
 
-    if (session && session.is_paused) {
+    if (session && (session.is_paused || session.status === 'paused')) {
       return NextResponse.json({ ok: true, reason: 'session_paused' });
     }
 
-    let currentStepIndex = 0;
+    let startStepIndex = 0;
     if (!session) {
       await query(
-        'INSERT INTO chatbot_sessions (chatbot_id, telegram_user_id, chat_id, current_step) VALUES ($1, $2, $3, $4)',
-        [chatbotId, telegramUserId.toString(), chatId.toString(), 0]
+        'INSERT INTO chatbot_sessions (chatbot_id, telegram_user_id, chat_id, current_step, status) VALUES ($1, $2, $3, $4, $5)',
+        [chatbotId, telegramUserId.toString(), chatId.toString(), 0, 'active']
+      );
+      session = await queryOne<any>(
+        'SELECT * FROM chatbot_sessions WHERE chatbot_id = $1 AND telegram_user_id = $2',
+        [chatbotId, telegramUserId.toString()]
       );
     } else {
-      currentStepIndex = session.current_step + 1;
-      if (currentStepIndex >= steps.length) {
-        currentStepIndex = 0;
-      }
-      await query(
-        'UPDATE chatbot_sessions SET current_step = $1, last_interaction = NOW() WHERE id = $2',
-        [currentStepIndex, session.id]
-      );
-    }
-
-    const currentStep = steps[currentStepIndex];
-    if (!currentStep) return NextResponse.json({ ok: true });
-
-    // ==== LÓGICA DE ENVIO BASEADA NO TIPO DE STEP ====
-    const baseOpts: any = { business_connection_id: businessConnectionId };
-
-    if (currentStep.type === 'text') {
-      if (currentStep.parseMode === 'HTML') {
-        baseOpts.parse_mode = 'HTML';
-      }
-      if (currentStep.simulateAction) {
-        await bot.sendChatAction(chatId, 'typing', { business_connection_id: businessConnectionId });
-        await sleep(1500); // 1.5s delay
-      }
-      await bot.sendMessage(chatId, currentStep.content || '', baseOpts);
-    
-    } else if (currentStep.type === 'media') {
-      if (currentStep.simulateAction) {
-        let actionMsg: TelegramBot.ChatAction = 'typing';
-        if (currentStep.mediaType === 'image') actionMsg = 'upload_photo';
-        else if (currentStep.mediaType === 'video') actionMsg = 'upload_video';
-        else if (currentStep.mediaType === 'audio') actionMsg = 'upload_document'; // ou upload_audio
-        else if (currentStep.mediaType === 'voice') actionMsg = 'record_voice';
-        
-        await bot.sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId });
-        await sleep(2500); // 2.5s delay para mídias
-      }
-
-      let mediaUrl = currentStep.mediaUrl;
-      if (mediaUrl?.startsWith('/')) {
-        // Se for upload local, adicionamos o host
-        const host = request.headers.get('host') || 'vip.callme.sbs';
-        const protocol = host.includes('localhost') ? 'http' : 'https';
-        mediaUrl = `${protocol}://${host}${mediaUrl}`;
-      }
-
-      try {
-        if (currentStep.mediaType === 'image') {
-          await bot.sendPhoto(chatId, mediaUrl, baseOpts);
-        } else if (currentStep.mediaType === 'video') {
-          await bot.sendVideo(chatId, mediaUrl, baseOpts);
-        } else if (currentStep.mediaType === 'voice') {
-          await bot.sendVoice(chatId, mediaUrl, baseOpts);
-        } else {
-          // audio normal (MP3)
-          await bot.sendAudio(chatId, mediaUrl, baseOpts);
+      if (session.status === 'closed') {
+        startStepIndex = 0;
+        await query(
+          "UPDATE chatbot_sessions SET current_step = 0, status = 'active', last_interaction = NOW() WHERE id = $1",
+          [session.id]
+        );
+      } else {
+        startStepIndex = session.current_step + 1;
+        if (startStepIndex >= steps.length) {
+          startStepIndex = 0;
         }
-      } catch (err) {
-        console.error('Erro ao enviar mídia:', err);
-        await bot.sendMessage(chatId, '[Erro ao carregar mídia]', baseOpts);
       }
-
-    } else if (currentStep.type === 'buttons') {
-      const inline_keyboard = [
-        currentStep.options.map((opt: any, optIndex: number) => {
-          if (opt.action === 'url' && opt.url) {
-            return { text: opt.label, url: opt.url };
-          }
-          if (opt.action === 'copy') {
-            return { text: opt.label, callback_data: `copy:${currentStepIndex}:${optIndex}` };
-          }
-          // Default callback actions (pix or send_link)
-          return {
-            text: opt.label,
-            callback_data: `${opt.action}:${opt.productId || ''}`
-          };
-        })
-      ];
-      baseOpts.reply_markup = { inline_keyboard };
-      await bot.sendMessage(chatId, currentStep.content || 'Escolha uma opção:', baseOpts);
     }
+
+    let currentStepIndex = startStepIndex;
+
+    const simConfig = typeof chatbot.simulation_config === 'string' 
+      ? JSON.parse(chatbot.simulation_config) 
+      : (chatbot.simulation_config || { textMode: 'normal', textMsPerChar: 180, videoMode: 'normal', audioMode: 'normal' });
+
+    const processFlow = async () => {
+      try {
+        while (currentStepIndex < steps.length) {
+          const currentStep = steps[currentStepIndex];
+          
+          await query(
+            'UPDATE chatbot_sessions SET current_step = $1, last_interaction = NOW() WHERE id = $2',
+            [currentStepIndex, session.id]
+          );
+
+          if (currentStep.type === 'wait_reply') {
+            break;
+          }
+
+          if (currentStep.type === 'delay') {
+            const delayMs = (currentStep.delaySeconds || 5) * 1000;
+            await sleep(delayMs);
+            currentStepIndex++;
+            continue;
+          }
+
+          // ==== LÓGICA DE ENVIO BASEADA NO TIPO DE STEP ====
+          const baseOpts: any = { business_connection_id: businessConnectionId };
+
+          if (currentStep.type === 'text') {
+            if (currentStep.parseMode === 'HTML') {
+              baseOpts.parse_mode = 'HTML';
+            }
+            if (currentStep.simulateAction !== false) {
+              if (simConfig.textMode === 'real') {
+                const duration = (currentStep.content || '').length * (simConfig.textMsPerChar || 180);
+                await simulateActionLoop(bot, chatId, 'typing', duration, businessConnectionId);
+              } else {
+                await bot.sendChatAction(chatId, 'typing', { business_connection_id: businessConnectionId }).catch(() => {});
+                await sleep(1500); // 1.5s delay
+              }
+            }
+            await bot.sendMessage(chatId, currentStep.content || '', baseOpts);
+          
+          } else if (currentStep.type === 'media') {
+            if (currentStep.simulateAction !== false) {
+              let actionMsg: TelegramBot.ChatAction = 'typing';
+              if (currentStep.mediaType === 'image') actionMsg = 'upload_photo';
+              else if (currentStep.mediaType === 'video') actionMsg = 'upload_video';
+              else if (currentStep.mediaType === 'audio') actionMsg = 'upload_document';
+              else if (currentStep.mediaType === 'voice') actionMsg = 'record_voice';
+              
+              const isVideo = currentStep.mediaType === 'video';
+              const isAudio = currentStep.mediaType === 'audio' || currentStep.mediaType === 'voice';
+
+              if (isVideo && simConfig.videoMode === 'real' && currentStep.mediaDuration) {
+                await simulateActionLoop(bot, chatId, actionMsg, currentStep.mediaDuration * 1000, businessConnectionId);
+              } else if (isAudio && simConfig.audioMode === 'real' && currentStep.mediaDuration) {
+                await simulateActionLoop(bot, chatId, actionMsg, currentStep.mediaDuration * 1000, businessConnectionId);
+              } else {
+                await bot.sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId }).catch(() => {});
+                await sleep(2500); // 2.5s delay para mídias
+              }
+            }
+
+            let mediaData: any = currentStep.mediaUrl;
+            if (currentStep.mediaUrl?.startsWith('/')) {
+              const fs = require('fs');
+              const path = require('path');
+              const filePath = path.join(process.cwd(), 'public', currentStep.mediaUrl);
+              
+              if (fs.existsSync(filePath)) {
+                mediaData = fs.createReadStream(filePath);
+              } else {
+                const appUrl = process.env.APP_URL;
+                if (appUrl) {
+                  mediaData = `${appUrl}${currentStep.mediaUrl}`;
+                } else {
+                  const host = request.headers.get('host') || 'vip.callme.sbs';
+                  const protocol = host.includes('localhost') ? 'http' : 'https';
+                  mediaData = `${protocol}://${host}${currentStep.mediaUrl}`;
+                }
+              }
+            }
+
+            try {
+              if (currentStep.mediaType === 'image') {
+                await bot.sendPhoto(chatId, mediaData, baseOpts);
+              } else if (currentStep.mediaType === 'video') {
+                await bot.sendVideo(chatId, mediaData, baseOpts);
+              } else if (currentStep.mediaType === 'voice') {
+                await bot.sendVoice(chatId, mediaData, baseOpts);
+              } else {
+                await bot.sendAudio(chatId, mediaData, baseOpts);
+              }
+            } catch (err) {
+              console.error('Erro ao enviar mídia:', err);
+              await bot.sendMessage(chatId, '[Erro ao carregar mídia]', baseOpts);
+            }
+
+          } else if (currentStep.type === 'buttons') {
+            const inline_keyboard = [
+              currentStep.options.map((opt: any, optIndex: number) => {
+                if (opt.action === 'url' && opt.url) {
+                  return { text: opt.label, url: opt.url };
+                }
+                if (opt.action === 'copy') {
+                  return { text: opt.label, callback_data: `copy:${currentStepIndex}:${optIndex}` };
+                }
+                return {
+                  text: opt.label,
+                  callback_data: `${opt.action}:${opt.productId || ''}`
+                };
+              })
+            ];
+            baseOpts.reply_markup = { inline_keyboard };
+            await bot.sendMessage(chatId, currentStep.content || 'Escolha uma opção:', baseOpts);
+          }
+
+          currentStepIndex++;
+        }
+
+        // Se finalizou todos os passos, fechamos a sessão
+        if (currentStepIndex >= steps.length) {
+          await query("UPDATE chatbot_sessions SET status = 'closed' WHERE id = $1", [session.id]);
+        }
+      } catch (e) {
+        console.error('Erro no processamento contínuo do fluxo:', e);
+      }
+    };
+
+    // Inicia o loop em background para que o Telegram receba o 200 OK imediatamente (evitando timeout)
+    processFlow();
 
     return NextResponse.json({ ok: true });
   } catch (error) {

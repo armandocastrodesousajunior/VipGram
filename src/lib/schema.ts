@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS chatbots (
   type              TEXT NOT NULL DEFAULT 'standard' CHECK (type IN ('standard', 'business')),
   bot_token         TEXT,
   business_connection_id TEXT,
+  simulation_config JSONB DEFAULT '{"textMode":"normal","textMsPerChar":180,"videoMode":"normal","audioMode":"normal"}'::jsonb,
   is_active         BOOLEAN DEFAULT TRUE,
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   updated_at        TIMESTAMPTZ DEFAULT NOW()
@@ -128,7 +129,9 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_position TEXT DEFAULT 'be
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_code TEXT;
 ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS pix_expires_at TIMESTAMPTZ;
 ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active';
 ALTER TABLE chatbots ALTER COLUMN product_id DROP NOT NULL;
+ALTER TABLE chatbots ADD COLUMN IF NOT EXISTS simulation_config JSONB DEFAULT '{"textMode":"normal","textMsPerChar":180,"videoMode":"normal","audioMode":"normal"}'::jsonb;
 
 -- Trigger para updated_at automático
 CREATE OR REPLACE FUNCTION update_updated_at_column()

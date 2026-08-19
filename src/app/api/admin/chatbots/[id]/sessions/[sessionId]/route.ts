@@ -10,11 +10,13 @@ export async function PATCH(
     const { action } = await req.json();
 
     if (action === 'pause') {
-      await query('UPDATE chatbot_sessions SET is_paused = TRUE WHERE id = $1 AND chatbot_id = $2', [sessionId, id]);
-    } else if (action === 'resume') {
-      await query('UPDATE chatbot_sessions SET is_paused = FALSE WHERE id = $1 AND chatbot_id = $2', [sessionId, id]);
+      await query("UPDATE chatbot_sessions SET is_paused = TRUE, status = 'paused' WHERE id = $1 AND chatbot_id = $2", [sessionId, id]);
+    } else if (action === 'resume' || action === 'reopen') {
+      await query("UPDATE chatbot_sessions SET is_paused = FALSE, status = 'active' WHERE id = $1 AND chatbot_id = $2", [sessionId, id]);
     } else if (action === 'reset') {
-      await query('UPDATE chatbot_sessions SET current_step = 0, is_paused = FALSE WHERE id = $1 AND chatbot_id = $2', [sessionId, id]);
+      await query("UPDATE chatbot_sessions SET current_step = -1, is_paused = FALSE, status = 'active' WHERE id = $1 AND chatbot_id = $2", [sessionId, id]);
+    } else if (action === 'close') {
+      await query("UPDATE chatbot_sessions SET status = 'closed' WHERE id = $1 AND chatbot_id = $2", [sessionId, id]);
     }
 
     // Retorna a sessão atualizada para o front
