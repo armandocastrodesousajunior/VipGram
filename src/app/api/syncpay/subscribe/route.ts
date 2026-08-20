@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSubscriber } from '@/lib/syncpay';
-import { query } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
 
 // Rate limiting simples em memória (por IP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -61,6 +61,14 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pixExpiresAt = (subscription as any).payment?.expires_at ?? null;
 
+    let validSid: string | null = null;
+    if (input.chatbot_session_id) {
+      const sessionExists = await queryOne('SELECT id FROM chatbot_sessions WHERE id = $1', [input.chatbot_session_id]);
+      if (sessionExists) {
+        validSid = input.chatbot_session_id;
+      }
+    }
+
     // Salva metadados + pix_code no banco
     await query(
       `INSERT INTO subscribers_meta 
@@ -83,7 +91,7 @@ export async function POST(request: NextRequest) {
         subscription.status,
         pixCode,
         pixExpiresAt,
-        input.chatbot_session_id ?? null,
+        validSid,
       ]
     );
 
