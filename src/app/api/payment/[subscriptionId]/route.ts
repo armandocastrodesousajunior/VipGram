@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { getSubscription } from '@/lib/syncpay';
-
+import { getSubscription, getPlan } from '@/lib/syncpay';
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ subscriptionId: string }> }
@@ -42,6 +41,13 @@ export async function GET(
           [newStatus, subscriptionId]
         );
         localData.status = newStatus;
+      }
+
+      if (syncpayData.plan_id) {
+        const planData = await getPlan(syncpayData.plan_id);
+        if (planData && planData.amount) {
+          localData.amount = planData.amount;
+        }
       }
     } catch (apiError) {
       console.error('[Payment Sync Error]:', apiError);
