@@ -21,12 +21,23 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function generateCPF(): string {
+  const randomDigit = () => Math.floor(Math.random() * 9);
+  const n1 = randomDigit(), n2 = randomDigit(), n3 = randomDigit(), n4 = randomDigit(), n5 = randomDigit(), n6 = randomDigit(), n7 = randomDigit(), n8 = randomDigit(), n9 = randomDigit();
+  let d1 = n9 * 2 + n8 * 3 + n7 * 4 + n6 * 5 + n5 * 6 + n4 * 7 + n3 * 8 + n2 * 9 + n1 * 10;
+  d1 = 11 - (d1 % 11);
+  if (d1 >= 10) d1 = 0;
+  let d2 = d1 * 2 + n9 * 3 + n8 * 4 + n7 * 5 + n6 * 6 + n5 * 7 + n4 * 8 + n3 * 9 + n2 * 10 + n1 * 11;
+  d2 = 11 - (d2 % 11);
+  if (d2 >= 10) d2 = 0;
+  return `${n1}${n2}${n3}${n4}${n5}${n6}${n7}${n8}${n9}${d1}${d2}`;
+}
+
 const subscribeSchema = z.object({
   product_id: z.string().uuid(),
   plan_id: z.union([z.string(), z.number()]).transform((v) => String(v)),
   name: z.string().min(2).max(100),
   email: z.string().email(),
-  cpf: z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos (sem pontuação)'),
   phone: z.string().optional(),
   telegram_username: z.string().optional(),
   chatbot_session_id: z.string().optional(),
@@ -48,12 +59,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const input = subscribeSchema.parse(body);
 
+    const generatedCpf = generateCPF();
+
     // Cria assinante na SyncPay
     const subscription = await createSubscriber({
       plan_id: input.plan_id,
       name: input.name,
       email: input.email,
-      cpf: input.cpf,
+      cpf: generatedCpf,
       phone: input.phone,
     });
 
@@ -85,7 +98,7 @@ export async function POST(request: NextRequest) {
         input.product_id,
         input.name,
         input.email,
-        input.cpf,
+        generatedCpf,
         input.phone ?? null,
         input.telegram_username ?? null,
         subscription.status,

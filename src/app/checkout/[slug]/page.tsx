@@ -30,15 +30,6 @@ interface Plan {
   periodicity_days: number;
 }
 
-function maskCPF(value: string) {
-  return value
-    .replace(/\D/g, '')
-    .slice(0, 11)
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})/, '$1-$2');
-}
-
 function maskPhone(value: string) {
   return value
     .replace(/\D/g, '')
@@ -57,7 +48,6 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [form, setForm] = useState({
     name: '',
     email: '',
-    cpf: '',
     phone: '',
   });
   const [errors, setErrors] = useState<Partial<typeof form>>({});
@@ -105,8 +95,6 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       errs.name = 'Informe nome e sobrenome completo';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       errs.email = 'Informe um e-mail válido';
-    if (form.cpf.replace(/\D/g, '').length !== 11)
-      errs.cpf = 'Informe um CPF válido (11 dígitos)';
     if (form.phone && form.phone.replace(/\D/g, '').length < 10)
       errs.phone = 'Informe um telefone válido';
     return errs;
@@ -130,7 +118,6 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           plan_id: String(product!.syncpay_plan_id),
           name: form.name.trim(),
           email: form.email.trim().toLowerCase(),
-          cpf: form.cpf.replace(/\D/g, ''),
           phone: form.phone.replace(/\D/g, '') || undefined,
           chatbot_session_id: localStorage.getItem('chatbot_sid') || undefined,
         }),
@@ -215,32 +202,17 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
               {errors.email && <span className="field-error-msg">{errors.email}</span>}
             </div>
 
-            <div className="grid-2-fields">
-              <div className="field-group">
-                <label className="field-label">CPF *</label>
-                <input
-                  type="text"
-                  className={`field-input ${errors.cpf ? 'error' : ''}`}
-                  placeholder="000.000.000-00"
-                  value={form.cpf}
-                  onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })}
-                  inputMode="numeric"
-                />
-                {errors.cpf && <span className="field-error-msg">{errors.cpf}</span>}
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">Telefone / WhatsApp</label>
-                <input
-                  type="text"
-                  className={`field-input ${errors.phone ? 'error' : ''}`}
-                  placeholder="(11) 99999-9999"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-                  inputMode="tel"
-                />
-                {errors.phone && <span className="field-error-msg">{errors.phone}</span>}
-              </div>
+            <div className="field-group">
+              <label className="field-label">Telefone / WhatsApp</label>
+              <input
+                type="text"
+                className={`field-input ${errors.phone ? 'error' : ''}`}
+                placeholder="(11) 99999-9999"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
+                inputMode="tel"
+              />
+              {errors.phone && <span className="field-error-msg">{errors.phone}</span>}
             </div>
 
             {/* Método de Pagamento Pix */}
