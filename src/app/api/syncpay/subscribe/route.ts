@@ -29,6 +29,7 @@ const subscribeSchema = z.object({
   cpf: z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos (sem pontuação)'),
   phone: z.string().optional(),
   telegram_username: z.string().optional(),
+  chatbot_session_id: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -65,8 +66,8 @@ export async function POST(request: NextRequest) {
       `INSERT INTO subscribers_meta 
         (syncpay_subscription_id, product_id, customer_name, customer_email, 
          customer_cpf, customer_phone, telegram_username, payment_status,
-         pix_code, pix_expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         pix_code, pix_expires_at, chatbot_session_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (syncpay_subscription_id) DO UPDATE SET
          pix_code = EXCLUDED.pix_code,
          pix_expires_at = EXCLUDED.pix_expires_at,
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
         subscription.status,
         pixCode,
         pixExpiresAt,
+        input.chatbot_session_id ?? null,
       ]
     );
 

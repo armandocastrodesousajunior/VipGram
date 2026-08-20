@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS subscribers_meta (
   customer_cpf               TEXT,
   customer_phone             TEXT,
   telegram_username          TEXT,
+  chatbot_session_id         TEXT REFERENCES chatbot_sessions(id) ON DELETE SET NULL,
 
   -- Entrega via bot
   telegram_user_id           BIGINT,
@@ -106,6 +107,12 @@ CREATE TABLE IF NOT EXISTS chatbot_sessions (
   current_step      INTEGER DEFAULT 0,
   is_paused         BOOLEAN DEFAULT FALSE,
   state_data        JSONB DEFAULT '{}'::jsonb,
+  
+  -- Tracking / Funil de Conversão
+  page_views        INTEGER DEFAULT 0,
+  checkout_views    INTEGER DEFAULT 0,
+  purchases         INTEGER DEFAULT 0,
+  
   last_interaction  TIMESTAMPTZ DEFAULT NOW(),
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(chatbot_id, telegram_user_id)
@@ -132,6 +139,11 @@ ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT 
 ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active';
 ALTER TABLE chatbots ALTER COLUMN product_id DROP NOT NULL;
 ALTER TABLE chatbots ADD COLUMN IF NOT EXISTS simulation_config JSONB DEFAULT '{"textMode":"normal","textMsPerChar":180,"videoMode":"normal","audioMode":"normal"}'::jsonb;
+
+ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS page_views INTEGER DEFAULT 0;
+ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS checkout_views INTEGER DEFAULT 0;
+ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS purchases INTEGER DEFAULT 0;
+ALTER TABLE subscribers_meta ADD COLUMN IF NOT EXISTS chatbot_session_id TEXT REFERENCES chatbot_sessions(id) ON DELETE SET NULL;
 
 -- Trigger para updated_at automático
 CREATE OR REPLACE FUNCTION update_updated_at_column()

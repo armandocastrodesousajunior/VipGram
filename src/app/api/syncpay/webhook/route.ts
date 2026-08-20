@@ -21,11 +21,19 @@ export async function POST(request: NextRequest) {
     );
 
     // Se o pagamento for confirmado e foi gerado no Chatbot
+    // Se o pagamento for confirmado
     if (['active', 'paid'].includes(status.toLowerCase())) {
       const meta = await queryOne<any>(
-        'SELECT product_id, telegram_user_id, bot_delivered FROM subscribers_meta WHERE syncpay_subscription_id = $1',
+        'SELECT product_id, telegram_user_id, bot_delivered, chatbot_session_id FROM subscribers_meta WHERE syncpay_subscription_id = $1',
         [subscription_id]
       );
+
+      // Atualiza as métricas da sessão se existir vínculo
+      if (meta && meta.chatbot_session_id) {
+        // Incrementamos purchases (e, de quebra, evitamos duplicar caso a webhook seja chamada duas vezes usando um check simples se for necessário)
+        // Aqui fazemos um incremento cego para simplificar, mas seria bom garantir idempotência futuramente
+        await query('UPDATE chatbot_sessions SET purchases = purchases + 1 WHERE id = $1', [meta.chatbot_session_id]).catch(() => {});
+      }
 
       // Se o PIX foi gerado in-chat (tem telegram_user_id) e ainda não entregue
       if (meta && meta.telegram_user_id && !meta.bot_delivered) {

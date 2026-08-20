@@ -70,6 +70,19 @@ export default function LandingClient({
   const [acceptedTerms, setAcceptedTerms] = useState(true);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get('sid');
+    if (sid) {
+      localStorage.setItem('chatbot_sid', sid);
+      fetch('/api/tracking/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sid, action: 'page_view' })
+      }).catch(console.error);
+    }
+  }, []);
+
   const theme = product.theme_color ?? 'clean_light';
   const creatorHandle = product.creator_name ? product.creator_name : `@${product.slug}`;
   const initials = getInitials(creatorHandle);

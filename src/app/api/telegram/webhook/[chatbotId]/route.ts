@@ -169,28 +169,44 @@ export async function POST(
       return NextResponse.json({ ok: true, reason: 'session_paused' });
     }
 
+    // Ignora a mensagem se a sessão já foi finalizada
+    if (session && session.status === 'closed') {
+      return NextResponse.json({ ok: true, reason: 'session_closed' });
+    }
+
+    // Ignora a mensagem se a sessão estiver atualmente processando o fluxo
+    if (session && session.status === 'processing') {
+      return NextResponse.json({ ok: true, reason: 'currently_processing' });
+    }
+
     let startStepIndex = 0;
     if (!session) {
-      await query(
-        'INSERT INTO chatbot_sessions (chatbot_id, telegram_user_id, chat_id, current_step, status) VALUES ($1, $2, $3, $4, $5)',
-        [chatbotId, telegramUserId.toString(), chatId.toString(), 0, 'active']
-      );
-      session = await queryOne<any>(
-        'SELECT * FROM chatbot_sessions WHERE chatbot_id = $1 AND telegram_user_id = $2',
-        [chatbotId, telegramUserId.toString()]
-      );
-    } else {
-      if (session.status === 'closed') {
-        startStepIndex = 0;
-        await query(
-          "UPDATE chatbot_sessions SET current_step = 0, status = 'active', last_interaction = NOW() WHERE id = $1",
-          [session.id]
+      try {
+        session = await queryOne<any>(
+          "INSERT INTO chatbot_sessions (chatbot_id, telegram_user_id, chat_id, current_step, status) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+          [chatbotId, telegramUserId.toString(), chatId.toString(), 0, 'processing']
         );
-      } else {
-        startStepIndex = session.current_step + 1;
-        if (startStepIndex >= steps.length) {
-          startStepIndex = 0;
-        }
+        startStepIndex = 0;
+      } catch (err) {
+        // Falhou por constraint UNIQUE (outro webhook inseriu no mesmo milissegundo)
+        return NextResponse.json({ ok: true, reason: 'concurrent_insert' });
+      }
+    } else {
+      // Tenta adquirir o "lock" atômico mudando de active para processing
+      const updatedSession = await queryOne<any>(
+        "UPDATE chatbot_sessions SET status = 'processing', last_interaction = NOW() WHERE id = $1 AND status = 'active' RETURNING *",
+        [session.id]
+      );
+
+      if (!updatedSession) {
+        // Se não retornou, outro request já alterou para processing no mesmo milissegundo
+        return NextResponse.json({ ok: true, reason: 'concurrent_processing' });
+      }
+
+      session = updatedSession;
+      startStepIndex = session.current_step + 1;
+      if (startStepIndex >= steps.length) {
+        startStepIndex = 0; // fallback safe
       }
     }
 
@@ -211,6 +227,7 @@ export async function POST(
           );
 
           if (currentStep.type === 'wait_reply') {
+            await query("UPDATE chatbot_sessions SET status = 'active' WHERE id = $1", [session.id]);
             break;
           }
 
@@ -237,7 +254,9 @@ export async function POST(
                 await sleep(1500); // 1.5s delay
               }
             }
-            await bot.sendMessage(chatId, currentStep.content || '', baseOpts);
+            let textContent = currentStep.content || '';
+            textContent = textContent.replace(/\{sid\}/g, session.id);
+            await bot.sendMessage(chatId, textContent, baseOpts);
           
           } else if (currentStep.type === 'media') {
             if (currentStep.simulateAction !== false) {
@@ -281,6 +300,11 @@ export async function POST(
             }
 
             try {
+              if (currentStep.mediaCaption) {
+                baseOpts.caption = currentStep.mediaCaption.replace(/\{sid\}/g, session.id);
+                if (currentStep.parseMode === 'HTML') baseOpts.parse_mode = 'HTML';
+              }
+
               if (currentStep.mediaType === 'image') {
                 await bot.sendPhoto(chatId, mediaData, baseOpts);
               } else if (currentStep.mediaType === 'video') {
@@ -299,7 +323,15 @@ export async function POST(
             const inline_keyboard = [
               currentStep.options.map((opt: any, optIndex: number) => {
                 if (opt.action === 'url' && opt.url) {
-                  return { text: opt.label, url: opt.url };
+                  // Substitui manualmente se o usuário digitou {sid}
+                  let finalUrl = opt.url.replace(/\{sid\}/g, session.id);
+                  
+                  // Injeta o sid automaticamente nas URLs do sistema SE não tiver sido injetado
+                  if (!finalUrl.includes(`sid=${session.id}`) && (finalUrl.includes('vip.callme.sbs') || finalUrl.includes('localhost') || finalUrl.includes(process.env.APP_URL || 'vip.callme.sbs'))) {
+                    const separator = finalUrl.includes('?') ? '&' : '?';
+                    finalUrl = `${finalUrl}${separator}sid=${session.id}`;
+                  }
+                  return { text: opt.label, url: finalUrl };
                 }
                 if (opt.action === 'copy') {
                   return { text: opt.label, callback_data: `copy:${currentStepIndex}:${optIndex}` };
@@ -311,7 +343,9 @@ export async function POST(
               })
             ];
             baseOpts.reply_markup = { inline_keyboard };
-            await bot.sendMessage(chatId, currentStep.content || 'Escolha uma opção:', baseOpts);
+            let buttonsContent = currentStep.content || 'Escolha uma opção:';
+            buttonsContent = buttonsContent.replace(/\{sid\}/g, session.id);
+            await bot.sendMessage(chatId, buttonsContent, baseOpts);
           }
 
           currentStepIndex++;
@@ -323,6 +357,8 @@ export async function POST(
         }
       } catch (e) {
         console.error('Erro no processamento contínuo do fluxo:', e);
+        // Em caso de erro crítico, retorna para active para não travar a sessão para sempre
+        await query("UPDATE chatbot_sessions SET status = 'active' WHERE id = $1", [session.id]);
       }
     };
 

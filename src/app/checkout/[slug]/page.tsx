@@ -63,6 +63,16 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
+    // Tracking de visualização de checkout
+    const sid = localStorage.getItem('chatbot_sid');
+    if (sid) {
+      fetch('/api/tracking/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sid, action: 'checkout_view' })
+      }).catch(console.error);
+    }
+
     params.then(({ slug: s }) => {
       setSlug(s);
       fetch(`/api/products?slug=${s}`)
@@ -120,6 +130,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           email: form.email.trim().toLowerCase(),
           cpf: form.cpf.replace(/\D/g, ''),
           phone: form.phone.replace(/\D/g, '') || undefined,
+          chatbot_session_id: localStorage.getItem('chatbot_sid') || undefined,
         }),
       });
 
