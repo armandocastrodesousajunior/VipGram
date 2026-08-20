@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MetaPixel } from '@/components/MetaPixel';
 
 interface Product {
   id: string;
@@ -14,6 +15,7 @@ interface Product {
   creator_name: string | null;
   theme_color: string | null;
   syncpay_plan_id: string;
+  meta_pixel_id: string | null;
   show_price: boolean;
   show_period: boolean;
   show_banner: boolean;
@@ -162,6 +164,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
   return (
     <div className={`checkout-view theme-${theme}`}>
+      <MetaPixel pixelId={product.meta_pixel_id} event="InitiateCheckout" />
       {/* Main Container */}
       <div className="view-container">
         

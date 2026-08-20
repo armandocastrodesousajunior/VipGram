@@ -5,10 +5,10 @@ import FlowBuilderClient from './FlowBuilderClient';
 export default async function FlowBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const chatbot = await queryOne('SELECT * FROM chatbots WHERE id = $1', [id]);
+  const chatbot = await queryOne<any>('SELECT * FROM chatbots WHERE id = $1', [id]);
   if (!chatbot) notFound();
 
-  const flow = await queryOne('SELECT * FROM chatbot_flows WHERE chatbot_id = $1', [id]);
+  const flow = await queryOne<any>('SELECT * FROM chatbot_flows WHERE chatbot_id = $1', [id]);
   const products = await query('SELECT id, name FROM products WHERE is_active = TRUE ORDER BY created_at DESC');
 
   return (

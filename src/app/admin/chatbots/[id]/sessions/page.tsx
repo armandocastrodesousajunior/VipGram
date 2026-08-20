@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation';
 export default async function SessionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const chatbot = await queryOne('SELECT * FROM chatbots WHERE id = $1', [id]);
+  const chatbot = await queryOne<any>('SELECT * FROM chatbots WHERE id = $1', [id]);
   if (!chatbot) notFound();
 
   // Buscar sessões ordenadas pela última interação

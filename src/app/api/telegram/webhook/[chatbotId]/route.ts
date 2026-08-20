@@ -17,7 +17,7 @@ const simulateActionLoop = async (
   let elapsed = 0;
   while (elapsed < durationMs) {
     try {
-      await bot.sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId });
+      await (bot as any).sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId });
     } catch (e) {
       // ignore
     }
@@ -34,6 +34,7 @@ export async function POST(
   try {
     const { chatbotId } = await params;
     const update = await request.json();
+    console.log(`[WEBHOOK RECEIVED EVENT - Chatbot ${chatbotId}]`, JSON.stringify(update, null, 2));
     
     // Buscar o chatbot no banco
     const chatbot = await queryOne<any>('SELECT * FROM chatbots WHERE id = $1 AND is_active = TRUE', [chatbotId]);
@@ -71,7 +72,7 @@ export async function POST(
         const productId = dataParts[1];
         if (!productId) return NextResponse.json({ ok: true });
 
-        await bot.sendMessage(chatId, '🔄 Gerando seu PIX seguro...', { business_connection_id: cb.message?.business_connection_id });
+        await (bot as any).sendMessage(chatId, '🔄 Gerando seu PIX seguro...', { business_connection_id: cb.message?.business_connection_id });
         
         try {
           const product = await queryOne<any>('SELECT slug, syncpay_plan_id FROM products WHERE id = $1', [productId]);
@@ -84,7 +85,7 @@ export async function POST(
             await query("UPDATE chatbot_sessions SET state_data = jsonb_set(state_data, '{last_pix_code}', $1::jsonb) WHERE id = $2", [JSON.stringify(pixData.pix_code), session.id]);
           }
 
-          await bot.sendMessage(chatId, `✅ *PIX Gerado com sucesso!*\n\nCopie o código abaixo clicando nele ou use os botões. Pague no seu aplicativo do banco para liberar o acesso:\n\n\`${pixData.pix_code}\``, {
+          await (bot as any).sendMessage(chatId, `✅ *PIX Gerado com sucesso!*\n\nCopie o código abaixo clicando nele ou use os botões. Pague no seu aplicativo do banco para liberar o acesso:\n\n\`${pixData.pix_code}\``, {
             parse_mode: 'Markdown',
             business_connection_id: cb.message?.business_connection_id,
             reply_markup: {
@@ -98,7 +99,7 @@ export async function POST(
           });
         } catch (e: any) {
           console.error('[ERRO AO GERAR PIX NO BOT]:', e);
-          await bot.sendMessage(chatId, '❌ Ocorreu um erro ao gerar o PIX. O servidor de pagamento pode estar indisponível no momento.', { 
+          await (bot as any).sendMessage(chatId, '❌ Ocorreu um erro ao gerar o PIX. O servidor de pagamento pode estar indisponível no momento.', { 
             business_connection_id: cb.message?.business_connection_id,
             reply_markup: {
               inline_keyboard: [
@@ -114,7 +115,7 @@ export async function POST(
         const product = await queryOne<any>('SELECT slug FROM products WHERE id = $1', [productId]);
         if (product) {
           const url = `https://vip.callme.sbs/p/${product.slug}`;
-          await bot.sendMessage(chatId, `🔗 Aqui está a página oficial com todos os detalhes do produto:\n\n${url}`, { business_connection_id: cb.message?.business_connection_id });
+          await (bot as any).sendMessage(chatId, `🔗 Aqui está a página oficial com todos os detalhes do produto:\n\n${url}`, { business_connection_id: cb.message?.business_connection_id });
         }
       } else if (action === 'copy') {
         const stepIndex = parseInt(dataParts[1], 10);
@@ -126,7 +127,7 @@ export async function POST(
           const copyText = steps[stepIndex]?.options?.[optionIndex]?.copyText;
           if (copyText) {
             // Envia como Markdown block (Monospace) para o usuário poder clicar e copiar nativamente no app
-            await bot.sendMessage(chatId, `\`${copyText}\``, { 
+            await (bot as any).sendMessage(chatId, `\`${copyText}\``, { 
               parse_mode: 'Markdown',
               business_connection_id: cb.message?.business_connection_id 
             });
@@ -134,7 +135,7 @@ export async function POST(
         }
       } else if (action === 'copy_pix') {
         if (session && session.state_data && session.state_data.last_pix_code) {
-          await bot.sendMessage(chatId, `\`${session.state_data.last_pix_code}\``, { 
+          await (bot as any).sendMessage(chatId, `\`${session.state_data.last_pix_code}\``, { 
             parse_mode: 'Markdown',
             business_connection_id: cb.message?.business_connection_id 
           });
@@ -153,6 +154,12 @@ export async function POST(
     const businessConnectionId = update.business_message ? update.business_message.business_connection_id : undefined;
 
     if (msg.chat.type !== 'private') return NextResponse.json({ ok: true });
+
+    // Se for uma conta Business e o sender for diferente do chat, significa que a mensagem
+    // foi enviada pelo próprio dono da conta Business (atendimento humano). O bot deve ignorar!
+    if (update.business_message && telegramUserId !== chatId) {
+      return NextResponse.json({ ok: true, reason: 'sent_by_business_owner' });
+    }
 
     const flow = await queryOne<any>('SELECT steps FROM chatbot_flows WHERE chatbot_id = $1', [chatbotId]);
     if (!flow || !flow.steps) return NextResponse.json({ ok: true });
@@ -250,13 +257,13 @@ export async function POST(
                 const duration = (currentStep.content || '').length * (simConfig.textMsPerChar || 180);
                 await simulateActionLoop(bot, chatId, 'typing', duration, businessConnectionId);
               } else {
-                await bot.sendChatAction(chatId, 'typing', { business_connection_id: businessConnectionId }).catch(() => {});
+                await (bot as any).sendChatAction(chatId, 'typing', { business_connection_id: businessConnectionId }).catch(() => {});
                 await sleep(1500); // 1.5s delay
               }
             }
             let textContent = currentStep.content || '';
             textContent = textContent.replace(/\{sid\}/g, session.id);
-            await bot.sendMessage(chatId, textContent, baseOpts);
+            await (bot as any).sendMessage(chatId, textContent, baseOpts);
           
           } else if (currentStep.type === 'media') {
             if (currentStep.simulateAction !== false) {
@@ -274,7 +281,7 @@ export async function POST(
               } else if (isAudio && simConfig.audioMode === 'real' && currentStep.mediaDuration) {
                 await simulateActionLoop(bot, chatId, actionMsg, currentStep.mediaDuration * 1000, businessConnectionId);
               } else {
-                await bot.sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId }).catch(() => {});
+                await (bot as any).sendChatAction(chatId, actionMsg, { business_connection_id: businessConnectionId }).catch(() => {});
                 await sleep(2500); // 2.5s delay para mídias
               }
             }
@@ -306,17 +313,17 @@ export async function POST(
               }
 
               if (currentStep.mediaType === 'image') {
-                await bot.sendPhoto(chatId, mediaData, baseOpts);
+                await (bot as any).sendPhoto(chatId, mediaData, baseOpts);
               } else if (currentStep.mediaType === 'video') {
-                await bot.sendVideo(chatId, mediaData, baseOpts);
+                await (bot as any).sendVideo(chatId, mediaData, baseOpts);
               } else if (currentStep.mediaType === 'voice') {
-                await bot.sendVoice(chatId, mediaData, baseOpts);
+                await (bot as any).sendVoice(chatId, mediaData, baseOpts);
               } else {
-                await bot.sendAudio(chatId, mediaData, baseOpts);
+                await (bot as any).sendAudio(chatId, mediaData, baseOpts);
               }
             } catch (err) {
               console.error('Erro ao enviar mídia:', err);
-              await bot.sendMessage(chatId, '[Erro ao carregar mídia]', baseOpts);
+              await (bot as any).sendMessage(chatId, '[Erro ao carregar mídia]', baseOpts);
             }
 
           } else if (currentStep.type === 'buttons') {
@@ -345,7 +352,7 @@ export async function POST(
             baseOpts.reply_markup = { inline_keyboard };
             let buttonsContent = currentStep.content || 'Escolha uma opção:';
             buttonsContent = buttonsContent.replace(/\{sid\}/g, session.id);
-            await bot.sendMessage(chatId, buttonsContent, baseOpts);
+            await (bot as any).sendMessage(chatId, buttonsContent, baseOpts);
           }
 
           currentStepIndex++;

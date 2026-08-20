@@ -15,6 +15,8 @@ interface FlowStep {
   parseMode?: 'HTML' | 'None';
   mediaUrl?: string;
   mediaType?: 'image' | 'video' | 'audio' | 'voice';
+  mediaCaption?: string;
+  mediaDuration?: number;
   simulateAction?: boolean;
   delaySeconds?: number;
   isGhost?: boolean;
@@ -34,8 +36,51 @@ export default function FlowBuilderClient({ chatbotId, initialSteps, products }:
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const draggedNewStepType = useRef<StepType | null>(null);
+
+  const exportFlow = () => {
+    const flowToExport = steps.filter(s => !s.isGhost).map(s => {
+      const { id, ...rest } = s;
+      return rest;
+    });
+    
+    const dataStr = JSON.stringify(flowToExport, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chatbot_flow.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (Array.isArray(json)) {
+          const importedSteps = json.map(s => ({
+            ...s,
+            id: crypto.randomUUID()
+          }));
+          setSteps(importedSteps);
+          setSaved(false);
+        } else {
+          alert('Arquivo JSON inválido para importação de fluxo.');
+        }
+      } catch (err) {
+        alert('Erro ao ler o arquivo JSON.');
+      }
+    };
+    reader.readAsText(file);
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
 
   // framer-motion lida com o Drag and Drop automaticamente!
 
@@ -624,6 +669,42 @@ export default function FlowBuilderClient({ chatbotId, initialSteps, products }:
             <p style={{ fontSize: 12, color: '#71717a', margin: '12px 0 0 0', textAlign: 'center' }}>
               Suas alterações entrarão em vigor imediatamente para novos usuários.
             </p>
+            
+            <div style={{ display: 'flex', gap: 12, marginTop: 24, paddingTop: 24, borderTop: '1px solid #27272a' }}>
+              <input 
+                type="file" 
+                accept="application/json" 
+                style={{ display: 'none' }} 
+                ref={importFileRef}
+                onChange={handleImport}
+              />
+              <button 
+                onClick={() => importFileRef.current?.click()} 
+                className="action-btn" 
+                style={{ flex: 1, backgroundColor: 'transparent', color: '#a1a1aa' }}
+                title="Importar fluxo de um arquivo .json"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Importar
+              </button>
+              <button 
+                onClick={exportFlow} 
+                className="action-btn" 
+                style={{ flex: 1, backgroundColor: 'transparent', color: '#a1a1aa' }}
+                title="Exportar fluxo atual como .json"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Exportar
+              </button>
+            </div>
           </div>
         </div>
 

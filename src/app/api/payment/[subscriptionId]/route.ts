@@ -17,7 +17,8 @@ export async function GET(
         sm.pix_expires_at,
         sm.customer_name,
         p.name AS product_name,
-        p.theme_color
+        p.theme_color,
+        p.meta_pixel_id
       FROM subscribers_meta sm
       JOIN products p ON p.id = sm.product_id
       WHERE sm.syncpay_subscription_id = $1

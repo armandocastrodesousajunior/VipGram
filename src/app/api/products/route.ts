@@ -18,9 +18,9 @@ interface Product {
   gallery_images: string[];
   preview_size: string;
   carousel_position: string;
-  type: string;
   billing_type: string;
   syncpay_plan_id: string;
+  meta_pixel_id: string | null;
   telegram_chat_id: string | null;
   telegram_chat_name: string | null;
   telegram_invite_link: string | null;
@@ -57,6 +57,7 @@ const productSchema = z.object({
   type: z.enum(['telegram_group', 'external_community']).default('telegram_group'),
   billing_type: z.enum(['subscription']).default('subscription'),
   syncpay_plan_id: z.string().min(1),
+  meta_pixel_id: z.string().optional().nullable(),
   telegram_chat_id: z.string().optional().nullable(),
   telegram_chat_name: z.string().optional().nullable(),
   telegram_invite_link: z.string().optional().nullable(),
@@ -117,15 +118,15 @@ export async function POST(request: NextRequest) {
       `INSERT INTO products (
         id, slug, name, description, image_url, banner_url, creator_name, theme_color,
         gallery_images, preview_size, carousel_position,
-        type, billing_type, syncpay_plan_id, telegram_chat_id, telegram_chat_name,
+        type, billing_type, syncpay_plan_id, meta_pixel_id, telegram_chat_id, telegram_chat_name,
         telegram_invite_link, bot_setup_done, show_price, show_description, show_period,
         show_creator, show_banner, show_features, custom_features, cta_text, is_active
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
         $9::jsonb, $10, $11,
-        $12, $13, $14, $15, $16,
-        $17, $18, $19, $20, $21,
-        $22, $23, $24, $25::jsonb, $26, $27
+        $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21, $22,
+        $23, $24, $25, $26::jsonb, $27, $28
       ) RETURNING *`,
       [
         id, data.slug, data.name, data.description ?? null,
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
         data.creator_name || null, data.theme_color || 'clean_light',
         JSON.stringify(data.gallery_images), data.preview_size, data.carousel_position,
         data.type, data.billing_type,
-        data.syncpay_plan_id,
+        data.syncpay_plan_id, data.meta_pixel_id ?? null,
         data.telegram_chat_id ?? null, data.telegram_chat_name ?? null,
         data.telegram_invite_link ?? null,
         data.bot_setup_done,

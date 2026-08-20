@@ -5,11 +5,11 @@ import ChatbotTabsClient from './ChatbotTabsClient';
 export default async function ChatbotPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const chatbot = await queryOne('SELECT * FROM chatbots WHERE id = $1', [id]);
+  const chatbot = await queryOne<any>('SELECT * FROM chatbots WHERE id = $1', [id]);
   if (!chatbot) notFound();
 
   // Buscar fluxo
-  const flow = await queryOne('SELECT * FROM chatbot_flows WHERE chatbot_id = $1', [id]);
+  const flow = await queryOne<any>('SELECT * FROM chatbot_flows WHERE chatbot_id = $1', [id]);
   const steps = flow && flow.steps ? (typeof flow.steps === 'string' ? JSON.parse(flow.steps) : flow.steps) : [];
 
   // Buscar produtos
@@ -45,10 +45,10 @@ export default async function ChatbotPage({ params }: { params: Promise<{ id: st
   // Agregar métricas do funil para o Dashboard
   const metrics = {
     totalLeads: sessions.length,
-    pageViews: sessions.reduce((sum, s) => sum + (s.page_views || 0), 0),
-    checkoutViews: sessions.reduce((sum, s) => sum + (s.checkout_views || 0), 0),
-    purchases: sessions.reduce((sum, s) => sum + (s.purchases || 0), 0),
-    abandonedCarts: sessions.filter(s => (s.checkout_views || 0) > 0 && (s.purchases || 0) === 0).length,
+    pageViews: sessions.reduce((sum, s: any) => sum + (Number(s.page_views) || 0), 0),
+    checkoutViews: sessions.reduce((sum, s: any) => sum + (Number(s.checkout_views) || 0), 0),
+    purchases: sessions.reduce((sum, s: any) => sum + (Number(s.purchases) || 0), 0),
+    abandonedCarts: sessions.filter((s: any) => (Number(s.checkout_views) || 0) > 0 && (Number(s.purchases) || 0) === 0).length,
   };
 
   return (

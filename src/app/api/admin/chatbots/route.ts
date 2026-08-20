@@ -40,15 +40,23 @@ export async function POST(request: NextRequest) {
 
     const chatbot = result[0];
 
-    // Registrar webhook na API do Telegram se for standard (tem token)
-    if (type === 'standard' && bot_token) {
+    // Registrar webhook na API do Telegram se houver token (mesmo sendo business precisa do webhook)
+    if (bot_token) {
       const appUrl = process.env.APP_URL || 'https://vip.callme.sbs';
       const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook/${chatbot.id}`;
-      const tgRes = await fetch(`https://api.telegram.org/bot${bot_token}/setWebhook?url=${webhookUrl}`);
+      const tgRes = await fetch(`https://api.telegram.org/bot${bot_token}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ['message', 'callback_query', 'business_message', 'business_connection']
+        })
+      });
       const tgData = await tgRes.json();
       if (!tgData.ok) {
         console.error('Erro ao registrar webhook no Telegram:', tgData);
-        // Não falhamos a requisição, mas logamos o erro
+      } else {
+        console.log('[WEBHOOK SET SUCCESS]', tgData);
       }
     }
 

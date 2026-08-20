@@ -16,6 +16,7 @@ const updateSchema = z.object({
   preview_size: z.enum(['30x30', '50x50', '100x100', '200x200', '300x300', '400x400', '500x500']).optional(),
   carousel_position: z.enum(['before_plan', 'after_plan']).optional(),
   syncpay_plan_id: z.string().min(1).optional(),
+  meta_pixel_id: z.string().optional().nullable(),
   telegram_chat_id: z.string().optional().nullable(),
   telegram_chat_name: z.string().optional().nullable(),
   telegram_invite_link: z.string().optional().nullable(),

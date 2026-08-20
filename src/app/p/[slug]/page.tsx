@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { queryOne } from '@/lib/db';
 import LandingClient from './LandingClient';
+import { MetaPixel } from '@/components/MetaPixel';
 
 interface Product {
   id: string;
@@ -16,6 +17,7 @@ interface Product {
   carousel_position?: string;
   type: string;
   syncpay_plan_id: string;
+  meta_pixel_id: string | null;
   show_price: boolean;
   show_description: boolean;
   show_period: boolean;
@@ -67,5 +69,10 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
     } catch { /* plano pode não estar disponível */ }
   }
 
-  return <LandingClient product={product} plan={plan} />;
+  return (
+    <>
+      <MetaPixel pixelId={product.meta_pixel_id} event="ViewContent" />
+      <LandingClient product={product} plan={plan} />
+    </>
+  );
 }

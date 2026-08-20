@@ -61,6 +61,7 @@ export default function NewProductPage() {
     creator_name: '',
     theme_color: 'clean_light',
     syncpay_plan_id: '',
+    meta_pixel_id: '',
     type: 'telegram_group' as const,
     telegram_chat_id: '',
     telegram_chat_name: '',
@@ -845,6 +846,26 @@ export default function NewProductPage() {
             <span>Selecione um plano da SyncPay na etapa 2 acima para liberar as opções de exibição do checkout.</span>
           </div>
         )}
+
+        {/* ─ Seção 4: Configurações de Rastreamento (Pixel) ─ */}
+        <div className="form-card">
+          <div className="card-header-badge">
+            <span className="badge-num">4</span>
+            <h2>Rastreamento (Meta Pixel)</h2>
+          </div>
+          
+          <div className="field-group">
+            <label className="field-label">ID do Meta Pixel (Facebook)</label>
+            <input
+              type="text"
+              className="field-input"
+              placeholder="Ex: 123456789012345"
+              value={form.meta_pixel_id}
+              onChange={(e) => setField('meta_pixel_id', e.target.value)}
+            />
+            <span className="field-help">Deixe em branco se não for usar rastreamento.</span>
+          </div>
+        </div>
 
         {/* Status */}
         <div className="form-card">

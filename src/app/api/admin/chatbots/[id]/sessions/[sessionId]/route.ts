@@ -20,13 +20,16 @@ export async function PATCH(
     }
 
     // Retorna a sessão atualizada para o front
-    const updated = await queryOne('SELECT * FROM chatbot_sessions WHERE id = $1', [sessionId]);
+    const updated = await queryOne<any>('SELECT * FROM chatbot_sessions WHERE id = $1', [sessionId]);
 
-    // Recupera a tag do estágio atual
-    const flow = await queryOne('SELECT steps FROM chatbot_flows WHERE chatbot_id = $1', [id]);
-    const steps = flow && flow.steps ? (typeof flow.steps === 'string' ? JSON.parse(flow.steps) : flow.steps) : [];
-    const stepObj = steps[updated.current_step];
-    updated.stageName = stepObj?.stageName || `Passo ${updated.current_step + 1}`;
+    if (updated) {
+      // Recupera a tag do estágio atual
+      const flow = await queryOne<any>('SELECT steps FROM chatbot_flows WHERE chatbot_id = $1', [id]);
+      const steps = flow && flow.steps ? (typeof flow.steps === 'string' ? JSON.parse(flow.steps) : flow.steps) : [];
+      const currentStepNum = Number(updated.current_step) || 0;
+      const stepObj = steps[currentStepNum];
+      updated.stageName = stepObj?.stageName || `Passo ${currentStepNum + 1}`;
+    }
 
     return NextResponse.json({ ok: true, session: updated });
   } catch (error) {

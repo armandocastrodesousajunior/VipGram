@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { MetaPixel } from '@/components/MetaPixel';
 
 function Confetti() {
   const colors = ['#d946ef', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#6366f1'];
@@ -46,6 +47,8 @@ export default function SucessoTelegramPage({
   const [error, setError] = useState('');
   const [retrying, setRetrying] = useState(false);
   const [themeColor, setThemeColor] = useState('clean_dark');
+  const [metaPixelId, setMetaPixelId] = useState<string | null>(null);
+  const [amount, setAmount] = useState<number | undefined>(undefined);
   const calledRef = useRef(false);
 
   useEffect(() => {
@@ -69,9 +72,9 @@ export default function SucessoTelegramPage({
       const paymentRes = await fetch(`/api/payment/${subscriptionId}`);
       if (paymentRes.ok) {
         const paymentData = await paymentRes.json();
-        if (paymentData.theme_color) {
-          setThemeColor(paymentData.theme_color);
-        }
+        if (paymentData.theme_color) setThemeColor(paymentData.theme_color);
+        if (paymentData.meta_pixel_id) setMetaPixelId(paymentData.meta_pixel_id);
+        if (paymentData.amount) setAmount(paymentData.amount);
       }
 
       const res = await fetch('/api/telegram/bot-info');
@@ -113,6 +116,7 @@ export default function SucessoTelegramPage({
 
   return (
     <div className={`theme-${themeColor} sucesso-page`}>
+      <MetaPixel pixelId={metaPixelId} event="Purchase" value={amount} />
       <Confetti />
 
       <div className="sucesso-card">

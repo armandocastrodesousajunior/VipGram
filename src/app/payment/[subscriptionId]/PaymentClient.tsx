@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import { MetaPixel } from '@/components/MetaPixel';
 
 const POLL_INTERVAL = 5_000;
 const MAX_WAIT = 10 * 60 * 1000;
@@ -15,6 +16,7 @@ interface PaymentData {
   customer_name: string;
   product_name: string;
   theme_color: string;
+  meta_pixel_id: string | null;
 }
 
 export default function PaymentClient({ subscriptionId }: { subscriptionId: string }) {
@@ -111,6 +113,7 @@ export default function PaymentClient({ subscriptionId }: { subscriptionId: stri
 
   return (
     <>
+      <MetaPixel pixelId={data?.meta_pixel_id ?? null} event="AddPaymentInfo" />
       <div className="left-card" style={{ alignItems: 'center', textAlign: 'center' }}>
 
         {/* Cabeçalho */}

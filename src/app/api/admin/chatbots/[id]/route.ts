@@ -57,14 +57,23 @@ export async function PUT(
       return NextResponse.json({ error: 'Chatbot não encontrado' }, { status: 404 });
     }
 
-    // Registrar webhook na API do Telegram se for standard
-    if (type === 'standard' && bot_token) {
+    // Registrar webhook na API do Telegram
+    if (bot_token) {
       const appUrl = process.env.APP_URL || 'https://vip.callme.sbs';
       const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook/${id}`;
-      const tgRes = await fetch(`https://api.telegram.org/bot${bot_token}/setWebhook?url=${webhookUrl}`);
+      const tgRes = await fetch(`https://api.telegram.org/bot${bot_token}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ['message', 'callback_query', 'business_message', 'business_connection']
+        })
+      });
       const tgData = await tgRes.json();
       if (!tgData.ok) {
         console.error('Erro ao registrar webhook no Telegram:', tgData);
+      } else {
+        console.log('[WEBHOOK SET SUCCESS]', tgData);
       }
     }
 
