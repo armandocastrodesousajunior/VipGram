@@ -4,25 +4,38 @@ import { useState } from 'react';
 import SessionsClient from './sessions/SessionsClient';
 import FlowBuilderClient from './builder/FlowBuilderClient';
 import SettingsClient from './settings/SettingsClient';
+import MetricsDashboardClient from './dashboard/MetricsDashboardClient';
 
 export default function ChatbotTabsClient({ 
   chatbotId,
   chatbot,
   initialSessions, 
   initialSteps, 
-  products 
+  products,
+  metrics
 }: { 
   chatbotId: string,
   chatbot: any,
   initialSessions: any[], 
   initialSteps: any[], 
-  products: any[] 
+  products: any[],
+  metrics: any
 }) {
-  const [activeTab, setActiveTab] = useState<'sessions' | 'flow' | 'settings'>('sessions');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'sessions' | 'flow' | 'settings'>('dashboard');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="segmented-control">
+        <button 
+          className={`segment-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+            <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+          </svg>
+          Métricas
+        </button>
         <button 
           className={`segment-btn ${activeTab === 'sessions' ? 'active' : ''}`}
           onClick={() => setActiveTab('sessions')}
@@ -58,6 +71,7 @@ export default function ChatbotTabsClient({
       </div>
 
       <div className="tab-content-wrapper">
+        {activeTab === 'dashboard' && <MetricsDashboardClient metrics={metrics} chatbotName={chatbot.name} />}
         {activeTab === 'sessions' && <SessionsClient chatbotId={chatbotId} initialSessions={initialSessions} />}
         {activeTab === 'flow' && <FlowBuilderClient chatbotId={chatbotId} initialSteps={initialSteps} products={products} />}
         {activeTab === 'settings' && <SettingsClient chatbot={chatbot} />}

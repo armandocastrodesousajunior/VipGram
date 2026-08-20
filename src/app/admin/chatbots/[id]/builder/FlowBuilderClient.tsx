@@ -447,7 +447,6 @@ export default function FlowBuilderClient({ chatbotId, initialSteps, products }:
                           value={opt.action}
                           onChange={e => updateOption(index, i, 'action', e.target.value)}
                         >
-                          <option value="generate_pix">Gerar PIX Nativo (Produto)</option>
                           <option value="send_link">Enviar Link da Página (Produto)</option>
                           <option value="url">Abrir URL (Redirecionar)</option>
                           <option value="copy">Botão Copiar Texto (Embutido)</option>

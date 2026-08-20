@@ -42,6 +42,15 @@ export default async function ChatbotPage({ params }: { params: Promise<{ id: st
     };
   });
 
+  // Agregar métricas do funil para o Dashboard
+  const metrics = {
+    totalLeads: sessions.length,
+    pageViews: sessions.reduce((sum, s) => sum + (s.page_views || 0), 0),
+    checkoutViews: sessions.reduce((sum, s) => sum + (s.checkout_views || 0), 0),
+    purchases: sessions.reduce((sum, s) => sum + (s.purchases || 0), 0),
+    abandonedCarts: sessions.filter(s => (s.checkout_views || 0) > 0 && (s.purchases || 0) === 0).length,
+  };
+
   return (
     <div className="admin-page-container">
       <div className="page-header" style={{ marginBottom: 28 }}>
@@ -57,6 +66,7 @@ export default async function ChatbotPage({ params }: { params: Promise<{ id: st
         initialSessions={enrichedSessions}
         initialSteps={steps}
         products={products}
+        metrics={metrics}
       />
 
       <style>{`
